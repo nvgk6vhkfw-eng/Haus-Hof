@@ -83,7 +83,7 @@ function formatDateDE(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))return va
 function toast(t){let el=$('#toast');el.textContent=t;el.style.display='block';clearTimeout(window._toast);window._toast=setTimeout(()=>el.style.display='none',3500)}
 function applyTheme(t){let a=themes[t]||themes.black_copper;['bg','panel','panel2','text','muted','accent','line'].forEach((n,i)=>document.documentElement.style.setProperty('--'+n,a[i]));document.querySelector('meta[name="theme-color"]').content=a[0]}
 function header(){return `<header><div><h1>Haus <span style="color:var(--accent)">&</span> Hof</h1><div class="sub">Unser Zuhause. Gemeinsam organisiert.</div></div><div class="topactions">${user?`<button class="secondary small" onclick="go('settings')" aria-label="Einstellungen">⚙️</button>`:''}</div></header>`}
-function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 1.9.6 · Haus & Hof</div>`}
+function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 1.9.7 · Haus & Hof</div>`}
 function back(){return `<button class="secondary small back" onclick="go('home')">← Übersicht</button>`}
 function config(){let url='https://fvwykztdwwbloweotlbd.supabase.co',key='sb_publishable_ARFAEa5Hwedfx6ftRPpz1A__TJ8aHvf';return {url,key}}
 function initClient(){let {url,key}=config();if(!url||!key)return false;try{client=window.supabase.createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true}});return true}catch(e){toast('Verbindungseinstellungen prüfen');return false}}
@@ -238,7 +238,51 @@ async function deleteShoppingItem(id){if(await remove('shopping_items',id))shopp
 async function finishShoppingList(id){let pending=cache.shoppingItems.filter(x=>x.list_id===id&&!x.checked);if(pending.length){let transfer=await appConfirm(`${pending.length} Artikel sind noch offen. In eine neue Liste übernehmen?`,'Offene Artikel übernehmen?');if(transfer){let title='Offene Artikel · '+new Date().toLocaleDateString('de-DE');let {data,error}=await client.from('shopping_lists').insert({household_id:household,title,status:'active'}).select('id').single();if(error){toast(error.message);return}let {error:e}=await client.from('shopping_items').insert(pending.map(x=>({household_id:household,list_id:data.id,name:x.name,quantity:x.quantity,unit:x.unit,sort_order:x.sort_order})));if(e){toast(e.message);return}}}if(await update('shopping_lists',id,{status:'archived',completed_at:new Date().toISOString()})){activeShoppingId=null;shopping()}}
 async function restoreShoppingList(id){if(await update('shopping_lists',id,{status:'active',completed_at:null})){activeShoppingId=null;shopping()}}
 function fridayWeek(d){let date=new Date(d+'T12:00:00');let shift=(date.getDay()+2)%7;date.setDate(date.getDate()-shift);return date.toLocaleDateString('en-CA')}
-async function shoppingFromWeek(listId){let target=cache.shoppingLists?.find(x=>x.id===listId&&x.status==='active');if(!target){toast('Bitte zuerst eine aktive Einkaufsliste öffnen');return}let start=upcomingShoppingFriday(),end=shiftISO(start,6);let [plan,recipes,ingredients]=await Promise.all([fetchRows('meal_plan','meal_date'),fetchRows('recipes'),fetchRows('recipe_ingredients')]);let sums=new Map();for(let m of plan.filter(x=>x.meal_date>=start&&x.meal_date<=end)){let r=recipes.find(x=>x.id===m.recipe_id);if(!r)continue;for(let i of ingredients.filter(x=>x.recipe_id===r.id)){let name=(i.ingredient||'').trim();if(!name)continue;let unit=(i.unit||'').trim(),key=name.toLocaleLowerCase('de-DE')+'|'+unit.toLocaleLowerCase('de-DE');let q=i.quantity==null?null:Number(i.quantity)*Number(m.portions||r.portions||1)/Number(r.portions||1);if(!sums.has(key))sums.set(key,{name,unit:unit||null,quantity:0,hasQuantity:false});let v=sums.get(key);if(q!=null&&Number.isFinite(q)){v.quantity+=q;v.hasQuantity=true}}}if(!sums.size){toast('Für '+formatDateDE(start)+' bis '+formatDateDE(end)+' sind noch keine Rezeptzutaten geplant.');return}let existing=cache.shoppingItems.filter(x=>x.list_id===listId&&!x.checked);let additions=[];for(let x of sums.values()){let old=existing.find(i=>i.name.trim().toLocaleLowerCase('de-DE')===x.name.toLocaleLowerCase('de-DE')&&(i.unit||'').trim().toLocaleLowerCase('de-DE')===(x.unit||'').toLocaleLowerCase('de-DE'));if(old)continue;additions.push({household_id:household,list_id:listId,name:x.name,quantity:x.hasQuantity?Math.round(x.quantity*100)/100:null,unit:x.unit})}if(!additions.length){toast('Alle Zutaten stehen bereits auf dieser Einkaufsliste.');return}let {error}=await client.from('shopping_items').insert(additions);if(error){toast('Übernahme fehlgeschlagen: '+error.message);return}toast(additions.length+' Zutaten zu '+target.title+' hinzugefügt');activeShoppingId=listId;shopping()}
+async function shoppingFromWeek(listId){
+ const target=cache.shoppingLists?.find(x=>x.id===listId&&x.status==='active');
+ if(!target){toast('Bitte zuerst eine aktive Einkaufsliste öffnen');return}
+ const start=upcomingShoppingFriday(),end=shiftISO(start,6);
+ // Rezeptzutaten haben nicht zwingend ein created_at-Feld: niemals danach sortieren.
+ const requests=await Promise.all([
+  client.from('meal_plan').select('*').eq('household_id',household).gte('meal_date',start).lte('meal_date',end),
+  client.from('recipes').select('*').eq('household_id',household),
+  client.from('recipe_ingredients').select('*').eq('household_id',household),
+  client.from('shopping_items').select('*').eq('household_id',household).eq('list_id',listId)
+ ]);
+ const error=requests.find(x=>x.error)?.error;
+ if(error){toast('Zutaten konnten nicht geladen werden: '+error.message);return}
+ const [plan,recipes,ingredients,existingItems]=requests.map(x=>x.data||[]);
+ if(!plan.length){toast('Für '+formatDateDE(start)+' bis '+formatDateDE(end)+' sind keine Gerichte eingeplant.');return}
+ const sums=new Map();let missing=0;
+ for(const m of plan){
+  const r=recipes.find(x=>x.id===m.recipe_id);
+  if(!r){missing++;continue}
+  const recipeIngredients=ingredients.filter(x=>x.recipe_id===r.id);
+  if(!recipeIngredients.length){missing++;continue}
+  for(const i of recipeIngredients){
+   const name=(i.ingredient||'').trim();if(!name)continue;
+   const unit=(i.unit||'').trim();
+   const key=name.toLocaleLowerCase('de-DE')+'|'+unit.toLocaleLowerCase('de-DE');
+   const quantity=i.quantity==null?null:Number(i.quantity)*Number(m.portions||r.portions||1)/Number(r.portions||1);
+   if(!sums.has(key))sums.set(key,{name,unit:unit||null,quantity:0,hasQuantity:false});
+   const value=sums.get(key);
+   if(quantity!=null&&Number.isFinite(quantity)){value.quantity+=quantity;value.hasQuantity=true}
+  }
+ }
+ if(!sums.size){toast('Keine Zutaten gefunden. Bitte die eingeplanten Rezepte prüfen.');return}
+ const existing=new Set(existingItems.map(i=>(i.name||'').trim().toLocaleLowerCase('de-DE')+'|'+(i.unit||'').trim().toLocaleLowerCase('de-DE')));
+ const additions=[];
+ for(const x of sums.values()){
+  const key=x.name.toLocaleLowerCase('de-DE')+'|'+(x.unit||'').toLocaleLowerCase('de-DE');
+  if(existing.has(key))continue;
+  additions.push({household_id:household,list_id:listId,name:x.name,quantity:x.hasQuantity?Math.round(x.quantity*100)/100:null,unit:x.unit});
+ }
+ if(!additions.length){toast('Alle Zutaten stehen bereits auf dieser Einkaufsliste.');return}
+ const {error:insertError}=await client.from('shopping_items').insert(additions);
+ if(insertError){toast('Übernahme fehlgeschlagen: '+insertError.message);return}
+ toast(additions.length+' Zutaten übernommen'+(missing?' · '+missing+' Rezepte ohne Zutaten':''));
+ activeShoppingId=listId;await shopping();
+}
 
 // V1.7: Wartungsprotokoll, Kilometer- und Betriebsstundenstände
 // V1.9.5: shared vehicle and machine management, recurring services, expenses
