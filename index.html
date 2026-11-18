@@ -96,7 +96,7 @@ function formatDateDE(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))return va
 function toast(t){let el=$('#toast');el.textContent=t;el.style.display='block';clearTimeout(window._toast);window._toast=setTimeout(()=>el.style.display='none',3500)}
 function applyTheme(t){let a=themes[t]||themes.black_copper;['bg','panel','panel2','text','muted','accent','line'].forEach((n,i)=>document.documentElement.style.setProperty('--'+n,a[i]));document.querySelector('meta[name="theme-color"]').content=a[0]}
 function header(){return `<header><div><h1>Haus <span style="color:var(--accent)">&</span> Hof</h1><div class="sub">Unser Zuhause. Gemeinsam organisiert.</div></div><div class="topactions">${user?`<button class="secondary small" onclick="go('settings')" aria-label="Einstellungen">⚙️</button>`:''}</div></header>`}
-function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 1.9.16 · Haus & Hof</div>`}
+function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 1.9.17 · Haus & Hof · by Tom Bücker</div>`}
 function back(){return `<button class="secondary small back" onclick="go('home')">← Übersicht</button>`}
 function config(){let url='https://fvwykztdwwbloweotlbd.supabase.co',key='sb_publishable_ARFAEa5Hwedfx6ftRPpz1A__TJ8aHvf';return {url,key}}
 function initClient(){let {url,key}=config();if(!url||!key)return false;try{client=window.supabase.createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true}});return true}catch(e){toast('Verbindungseinstellungen prüfen');return false}}
