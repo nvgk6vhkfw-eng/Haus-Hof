@@ -311,6 +311,21 @@ html:has(input:focus) .hh-bottom-nav,html:has(textarea:focus) .hh-bottom-nav,htm
 .hh-task-form .actions{margin-top:15px}.hh-task-photo-info{font-size:12px;color:var(--muted)}
 @media(min-width:700px){.hh-task-stack{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
+
+/* V2.2.2: Eigene Datumsauswahl statt des großen iPhone-Datumsdialogs. */
+.hh-date-trigger{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:46px;gap:8px;text-align:left;background:var(--panel2);border:1px solid var(--line);color:var(--text);font-weight:500;border-radius:12px;padding:10px 12px}
+.hh-date-trigger .hh-date-label{flex:1}.hh-inline-calendar[hidden]{display:none!important}
+.hh-inline-calendar{padding:12px;margin-top:7px;border:1px solid var(--line);background:var(--panel2);border-radius:14px;max-width:340px}
+.hh-date-month{display:flex;justify-content:space-between;align-items:center;gap:5px;margin-bottom:10px}
+.hh-date-month strong{font-size:14px}.hh-date-month button{padding:6px 11px;min-width:38px;background:var(--panel);color:var(--text)}
+.hh-date-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.hh-date-grid .dow{text-align:center;font-size:11px;color:var(--muted);padding:6px 0}
+.hh-date-grid button{padding:0;min-height:35px;border-radius:9px;background:transparent;color:var(--text);font-size:13px;font-weight:500}
+.hh-date-grid button.active{background:var(--accent);color:#181411}
+.hh-date-grid button.today:not(.active){outline:1px solid var(--accent)}
+.hh-date-grid .empty{min-height:35px}
+.hh-date-footer{display:flex;justify-content:space-between;gap:8px;margin-top:10px}
+.hh-date-footer button{font-size:12px;padding:7px 9px}
 </style></head><body><div id="app" class="wrap"></div><div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -326,7 +341,7 @@ function toast(t){let el=$('#toast');el.textContent=t;el.style.display='block';c
 function applyTheme(t){let a=themes[t]||themes.black_copper;['bg','panel','panel2','text','muted','accent','line'].forEach((n,i)=>document.documentElement.style.setProperty('--'+n,a[i]));document.querySelector('meta[name="theme-color"]').content=a[0]}
 function header(){return `<header><div><h1>Haus <span style="color:var(--accent)">&</span> Hof</h1><div class="sub">Unser Zuhause. Gemeinsam organisiert.</div></div><div class="topactions">${user?`<button class="hh-settings" onclick="go('settings')" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button>`:''}</div></header>`}
 function hhMobileNav(){if(!user||!household)return '';const items=[['⌂','Start','go(\'home\')',page==='home'],['▦','Woche','openRecipeTab(\'week\')',page==='recipes'&&recipeTab==='week'],['🛒','Einkauf','go(\'shopping\')',page==='shopping'],['▤','Rezepte','openRecipeTab(\'list\')',page==='recipes'&&recipeTab==='list']];return `<nav class="hh-bottom-nav" aria-label="Schnellnavigation"><div class="hh-bottom-nav-inner">${items.map(([icon,name,action,active])=>`<button type="button" class="hh-nav-btn ${active?'active':''}" ${active?'aria-current="page"':''} onclick="${action}"><span class="hh-nav-icon" aria-hidden="true">${icon}</span><span>${name}</span></button>`).join('')}</div></nav>`}
-function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 2.2.1 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
+function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 2.2.2 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
 function openRecipeTab(tab){if(!user||!household)return;page='recipes';editing=null;activeShoppingId=null;recipes(tab)}
 function hhHomeDisclosureChange(el,key){try{localStorage.setItem(key,el.open?'1':'0')}catch(e){}}
 function hhHomeDisclosureOpen(key,defaultOpen){try{let value=localStorage.getItem(key);return value===null?defaultOpen:value==='1'}catch(e){return defaultOpen}}
@@ -483,7 +498,35 @@ function shiftISO(iso,days){let d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getU
 function nextDue(x,when){let r=x.repeat_type||'none',n=Math.max(1,Number(x.repeat_interval)||1),base=x.due_date||when;if(r==='none')return null;if(r==='after_days')return shiftISO(when,n);if(r==='after_weeks')return shiftISO(when,7*n);if(r==='after_months')return addMonthsISO(when,n);let next=base;for(let i=0;i<1000;i++){next=r==='fixed_week'?shiftISO(next,7*n):addMonthsISO(next,(r==='fixed_year'?12:1)*n);if(next>when)return next}return next}
 function recurrenceFields(x={}){let r=x.repeat_type||'none';return `<label>Wiederholung</label><select name="repeat_type" onchange="this.form.querySelector('.repeat-count').classList.toggle('hidden',this.value==='none')">${Object.entries(repeatLabels).map(([k,v])=>`<option value="${k}" ${r===k?'selected':''}>${v}</option>`).join('')}</select><div class="repeat-count ${r==='none'?'hidden':''}"><label>Alle wie viele Tage / Wochen / Monate / Jahre?</label><input name="repeat_interval" type="number" min="1" max="365" value="${Number(x.repeat_interval)||1}"></div>`}
 function assignmentOptions(x={}){let a=x.assigned_to_both?'both':x.assigned_to||'';return `<option value="" ${!a?'selected':''}>Nicht zugewiesen</option><option value="both" ${a==='both'?'selected':''}>Beide</option>${Object.entries(memberNames).map(([id,n])=>`<option value="${id}" ${a===id?'selected':''}>${esc(n)}</option>`).join('')}`}
-function taskForm(category,x=null){const more=!!x;return `<div class="hh-task-form"><h2>${x?'Aufgabe bearbeiten':'Neue Aufgabe'}</h2><form onsubmit="${x?`saveTask(event,'${x.id}','${taskRoute(category)}')`:`addTask(event,'${category}')`}"><div class="hh-form-basic"><label>Was ist zu tun?</label><input name="title" value="${esc(x?.title||'')}" required maxlength="180" placeholder="z. B. ${category==='hof'?'Zaun reparieren':'Fenster putzen'}" autofocus><div class="formgrid"><div><label>Fällig am (optional)</label><input name="due" type="date" lang="de-DE" value="${esc(x?.due_date||'')}"></div><div><label>Zuständig</label><select name="assigned">${assignmentOptions(x||{})}</select></div></div></div><details class="hh-form-more" ${more?'open':''}><summary>↻ Wiederholung & Notizen</summary>${recurrenceFields(x||{})}<label>Notizen</label><textarea name="details" placeholder="Weitere Informationen (optional)">${esc(x?.details||'')}</textarea></details><div class="actions"><button type="submit">${x?'Änderungen speichern':'Aufgabe speichern'}</button><button type="button" class="secondary" onclick="go('${taskRoute(category)}')">Abbrechen</button></div></form></div>`}
+
+let hhTaskCalendarMonth=null;
+function toggleTaskDatePicker(button){
+ const calendar=button.nextElementSibling;
+ if(!calendar)return;
+ const opening=calendar.hidden;
+ calendar.hidden=!opening;button.setAttribute('aria-expanded',String(opening));
+ if(opening){const selected=button.previousElementSibling.value;const initial=selected&&/^\d{4}-\d{2}-\d{2}$/.test(selected)?new Date(selected+'T12:00:00'):new Date();hhTaskCalendarMonth=new Date(initial.getFullYear(),initial.getMonth(),1);drawTaskDatePicker(calendar)}
+}
+function shiftTaskDateMonth(el,direction){
+ hhTaskCalendarMonth=new Date(hhTaskCalendarMonth.getFullYear(),hhTaskCalendarMonth.getMonth()+direction,1);
+ drawTaskDatePicker(el.closest('.hh-inline-calendar'));
+}
+function selectTaskDate(el,iso){
+ const calendar=el.closest('.hh-inline-calendar'),field=calendar.previousElementSibling.previousElementSibling;
+ field.value=iso;calendar.previousElementSibling.querySelector('.hh-date-label').textContent=iso?formatDateDE(iso):'Datum auswählen';
+ calendar.hidden=true;calendar.previousElementSibling.setAttribute('aria-expanded','false');
+ field.dispatchEvent(new Event('change',{bubbles:true}));
+}
+function drawTaskDatePicker(calendar){
+ if(!calendar||!hhTaskCalendarMonth)return;
+ const y=hhTaskCalendarMonth.getFullYear(),m=hhTaskCalendarMonth.getMonth(),selected=calendar.previousElementSibling.previousElementSibling.value;
+ const offset=(new Date(y,m,1).getDay()+6)%7,count=new Date(y,m+1,0).getDate(),today=localISO();
+ const cells=Array.from({length:offset},()=>'<span class="empty"></span>');
+ for(let d=1;d<=count;d++){const iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;cells.push(`<button type="button" class="${iso===selected?'active ':''}${iso===today?'today':''}" aria-label="${d}. ${m+1}. ${y}" onclick="selectTaskDate(this,'${iso}')">${d}</button>`)}
+ calendar.innerHTML=`<div class="hh-date-month"><button type="button" onclick="shiftTaskDateMonth(this,-1)" aria-label="Vorheriger Monat">‹</button><strong>${hhTaskCalendarMonth.toLocaleDateString('de-DE',{month:'long',year:'numeric'})}</strong><button type="button" onclick="shiftTaskDateMonth(this,1)" aria-label="Nächster Monat">›</button></div><div class="hh-date-grid">${['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=>`<span class="dow">${d}</span>`).join('')}${cells.join('')}</div><div class="hh-date-footer"><button type="button" class="secondary" onclick="selectTaskDate(this,'')">Ohne Datum</button><button type="button" class="secondary" onclick="selectTaskDate(this,localISO())">Heute</button></div>`;
+}
+
+function taskForm(category,x=null){const more=!!x;return `<div class="hh-task-form"><h2>${x?'Aufgabe bearbeiten':'Neue Aufgabe'}</h2><form onsubmit="${x?`saveTask(event,'${x.id}','${taskRoute(category)}')`:`addTask(event,'${category}')`}"><div class="hh-form-basic"><label>Was ist zu tun?</label><input name="title" value="${esc(x?.title||'')}" required maxlength="180" placeholder="z. B. ${category==='hof'?'Zaun reparieren':'Fenster putzen'}" autofocus><div class="formgrid"><div><label>Fällig am (optional)</label><input name="due" type="hidden" value="${esc(x?.due_date||'')}"><button type="button" class="hh-date-trigger" onclick="toggleTaskDatePicker(this)" aria-expanded="false">📅 <span class="hh-date-label">${x?.due_date?esc(formatDateDE(x.due_date)):'Datum auswählen'}</span> <span aria-hidden="true">⌄</span></button><div class="hh-inline-calendar" hidden></div></div><div><label>Zuständig</label><select name="assigned">${assignmentOptions(x||{})}</select></div></div></div><details class="hh-form-more" ${more?'open':''}><summary>↻ Wiederholung & Notizen</summary>${recurrenceFields(x||{})}<label>Notizen</label><textarea name="details" placeholder="Weitere Informationen (optional)">${esc(x?.details||'')}</textarea></details><div class="actions"><button type="submit">${x?'Änderungen speichern':'Aufgabe speichern'}</button><button type="button" class="secondary" onclick="go('${taskRoute(category)}')">Abbrechen</button></div></form></div>`}
 function taskCard(x,p,done=false){const who=x.assigned_to_both?'Beide':x.assigned_to?memberNames[x.assigned_to]||'Zugewiesen':'Offen',today=localISO();const due=x.due_date?(x.due_date<today&&!done?'late':x.due_date===today&&!done?'today':''):'';const meta=[`👤 ${esc(who)}`,x.due_date?`<span class="${due}">📅 ${esc(x.due_date===today?'Heute':formatDateDE(x.due_date))}</span>`:'',x.repeat_type&&x.repeat_type!=='none'?'↻ Wiederholt':''].filter(Boolean).join('<span aria-hidden="true">·</span>');return `<div class="hh-task-row"><div class="hh-task-row-main">${done?'<span class="ok" aria-label="Erledigt">✓</span>':`<input aria-label="${esc(x.title)} erledigen" class="check" type="checkbox" onchange="toggleTask('${x.id}',true,'${p}')">`}<div class="hh-task-body"><strong class="hh-task-title">${esc(x.title)}</strong><div class="hh-task-sub">${meta}</div></div><details class="hh-task-menu"><summary aria-label="Aufgabenoptionen">⋮</summary><div class="hh-task-menu-actions">${done?`<button type="button" onclick="reopenTask('${x.id}','${p}')">↶ Wieder öffnen</button>`:`<button type="button" onclick="editTask('${x.id}','${p}')">✎ Bearbeiten</button>`}<button type="button" class="danger" onclick="deleteAndRefresh('tasks','${x.id}','${p}')">Löschen</button></div></details></div>${x.details?`<details class="hh-task-note"><summary>Notiz ansehen</summary><p>${esc(x.details)}</p></details>`:''}</div>`}
 async function tasks(p,view='open'){const category=p==='yard'?'hof':'haushalt',rows=(await fetchRows('tasks','due_date')).filter(x=>x.category===category);if(page!==p)return;cache.tasks=rows;const completed=rows.filter(x=>x.completed_at),open=rows.filter(x=>!x.completed_at),done=view==='done';render(back()+`<div class="hh-task-top"><div><h2>${category==='hof'?'🌿 Hof & Reparaturen':'🏠 Haushalt'}</h2><small>${open.length} Aufgaben offen</small></div><button class="small" onclick="showTaskForm('${category}')">＋ Neu</button></div><div class="hh-task-tabs"><button class="${!done?'active':''}" onclick="tasks('${p}','open')">Offen (${open.length})</button><button class="${done?'active':''}" onclick="tasks('${p}','done')">Erledigt</button></div>${done?'<p class="muted" style="font-size:12px">Erledigte Aufgaben und die letzten vier Monate der Historie.</p>':''}<div class="hh-task-stack" id="hh-tasks-rows">${(done?completed.sort((a,b)=>(b.completed_at||'').localeCompare(a.completed_at||'')):open).map(x=>taskCard(x,p,done)).join('')||`<p class="muted">${done?'Keine aktuell erledigten Aufgaben.':'Keine offenen Aufgaben.'}</p>`}</div>${done?'<div id="hh-tasks-history"></div>':''}`);if(done)await loadCompletionDetails(completed,p)}
 function showTaskForm(category){render(back()+taskForm(category))}
