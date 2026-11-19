@@ -300,7 +300,7 @@ function toast(t){let el=$('#toast');el.textContent=t;el.style.display='block';c
 function applyTheme(t){let a=themes[t]||themes.black_copper;['bg','panel','panel2','text','muted','accent','line'].forEach((n,i)=>document.documentElement.style.setProperty('--'+n,a[i]));document.querySelector('meta[name="theme-color"]').content=a[0]}
 function header(){return `<header><div><h1>Haus <span style="color:var(--accent)">&</span> Hof</h1><div class="sub">Unser Zuhause. Gemeinsam organisiert.</div></div><div class="topactions">${user?`<button class="hh-settings" onclick="go('settings')" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button>`:''}</div></header>`}
 function hhMobileNav(){if(!user||!household)return '';const items=[['⌂','Start','go(\'home\')',page==='home'],['▦','Woche','openRecipeTab(\'week\')',page==='recipes'&&recipeTab==='week'],['🛒','Einkauf','go(\'shopping\')',page==='shopping'],['▤','Rezepte','openRecipeTab(\'list\')',page==='recipes'&&recipeTab==='list']];return `<nav class="hh-bottom-nav" aria-label="Schnellnavigation"><div class="hh-bottom-nav-inner">${items.map(([icon,name,action,active])=>`<button type="button" class="hh-nav-btn ${active?'active':''}" ${active?'aria-current="page"':''} onclick="${action}"><span class="hh-nav-icon" aria-hidden="true">${icon}</span><span>${name}</span></button>`).join('')}</div></nav>`}
-function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 2.1.4 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
+function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 2.1.6 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
 function openRecipeTab(tab){if(!user||!household)return;page='recipes';editing=null;activeShoppingId=null;recipes(tab)}
 function hhHomeDisclosureChange(el,key){try{localStorage.setItem(key,el.open?'1':'0')}catch(e){}}
 function hhHomeDisclosureOpen(key,defaultOpen){try{let value=localStorage.getItem(key);return value===null?defaultOpen:value==='1'}catch(e){return defaultOpen}}
@@ -316,7 +316,27 @@ function saveConfig(){let url=$('#url').value.trim(),key=$('#key').value.trim();
 function login(){render(`<div class="card auth"><h2>Willkommen zuhause</h2><p class="muted">Melde dich mit deinem eigenen Haus-&-Hof-Konto an.</p><form onsubmit="signIn(event)"><label>E-Mail-Adresse</label><input id="email" type="email" autocomplete="username" required><label>Passwort</label><input id="password" type="password" autocomplete="current-password" required><div class="spacer"></div><button type="submit">Anmelden</button></form><p class="muted">Die Konten wurden bereits in Supabase angelegt.</p><button class="secondary small" onclick="setup()">Verbindungseinstellungen</button></div>`)}
 async function signIn(e){e.preventDefault();let {error}=await client.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value});if(error){toast('Anmeldung fehlgeschlagen: '+error.message);return}await start()}
 async function signOut(){hhLiveStop();await client.auth.signOut();user=null;household=null;login()}
-async function start(){let {data:{user:u}}=await client.auth.getUser();user=u;if(!user){login();return}let {data,error}=await client.from('household_members').select('household_id,display_name,user_id').eq('user_id',user.id).limit(1);if(error||!data?.length){render(`<div class="notice">Dein Konto ist angemeldet, aber noch keinem Haushalt zugeordnet. Bitte die Supabase-Mitgliedschaft prüfen.</div><button onclick="signOut()">Abmelden</button>`);return}household=data[0].household_id;let m=await client.from('household_members').select('user_id,display_name').eq('household_id',household);memberNames=Object.fromEntries((m.data||[]).map(x=>[x.user_id,x.display_name]));let p=await client.from('user_preferences').select('*').eq('user_id',user.id).maybeSingle();prefs={theme:'black_copper',tile_layout:[],push_preferences:{},...(p.data||{})};applyTheme(prefs.theme);go('home');hhLiveStart()}
+async function start(){
+ const {data:{user:u}}=await client.auth.getUser();user=u;
+ if(!user){login();return}
+ render('<div class="card"><h2>Haus & Hof wird geöffnet …</h2><p class="muted">Deine Übersicht wird vorbereitet.</p></div>');
+ const {data,error}=await client.from('household_members').select('household_id,display_name,user_id').eq('user_id',user.id).limit(1);
+ if(error||!data?.length){render(`<div class="notice">Dein Konto ist angemeldet, aber noch keinem Haushalt zugeordnet. Bitte die Supabase-Mitgliedschaft prüfen.</div><button onclick="signOut()">Abmelden</button>`);return}
+ household=data[0].household_id;
+ // Teamnamen und persönliche Einstellungen gleichzeitig abrufen.
+ const [m,p]=await Promise.all([
+  client.from('household_members').select('user_id,display_name').eq('household_id',household),
+  client.from('user_preferences').select('*').eq('user_id',user.id).maybeSingle()
+ ]);
+ memberNames=Object.fromEntries((m.data||[]).map(x=>[x.user_id,x.display_name]));
+ if(!memberNames[user.id])memberNames[user.id]=data[0].display_name||'';
+ prefs={theme:'black_copper',tile_layout:[],push_preferences:{},...(p.data||{})};
+ applyTheme(prefs.theme);
+ hhStartupOpening=true;
+ go('home');
+ // Realtime erst nach dem ersten Anzeigen der Startseite aktivieren.
+ setTimeout(()=>{if(user&&household)hhLiveStart()},1800);
+}
 async function savePrefs(){let {error}=await client.from('user_preferences').upsert({user_id:user.id,theme:prefs.theme,tile_layout:prefs.tile_layout,push_preferences:prefs.push_preferences});if(error)toast(error.message)}
 
 // V2.1.4 – Haushalts-Synchronisierung mit Realtime und Wiederabgleich.
@@ -384,7 +404,14 @@ document.addEventListener('focusout',()=>{if(hhLivePending)setTimeout(hhLiveTryR
 document.addEventListener('toggle',()=>{if(hhLivePending)setTimeout(hhLiveTryRefresh,250)},true);
 
 function go(p){if(p!=='shopping')activeShoppingId=null;page=p;editing=null;if(p==='home')home();else if(p==='settings')settings();else if(p==='tasks'||p==='yard')tasks(p);else if(p==='recipes')recipes();else if(p==='shopping')shopping();else if(p==='ideas')ideas();else if(p==='assets')assets();else if(p==='calendar')calendar();else if(p==='reminders')reminders()}
+let hhStartupOpening=false;
 async function home(){
+ if(hhStartupOpening){
+  hhStartupOpening=false;
+  const quick=modules.map(m=>`<button class="tile" onclick="go('${m[0]}')"><span class="emoji">${m[1]}</span><span><strong>${m[2]}</strong></span></button>`).join('');
+  render(`<p class="muted home-greeting">Hallo ${esc(memberNames[user.id]||'ihr zwei')} 👋</p><div class="today-heading">Heute im Überblick</div><div class="today-card" style="padding:13px;color:var(--muted)">Termine, Aufgaben und Essen werden geladen …</div><div class="today-heading">Unsere Bereiche</div><div class="grid home-tiles">${quick}</div>`);
+ }
+
  const thisHousehold=household;
  const order=Array.isArray(prefs.tile_layout)&&prefs.tile_layout.length?prefs.tile_layout:modules.map(m=>m[0]);
  const ordered=[...modules].sort((a,b)=>(order.includes(a[0])?order.indexOf(a[0]):100+modules.findIndex(m=>m[0]===a[0]))-(order.includes(b[0])?order.indexOf(b[0]):100+modules.findIndex(m=>m[0]===b[0])));
@@ -411,7 +438,7 @@ async function home(){
  render(`<p class="muted home-greeting">Hallo ${esc(memberNames[user.id]||'ihr zwei')} 👋 · ${esc(dateLabel)}</p>${overview}<button class="reminder-home-link" onclick="go('reminders')">🔔 Fällige Aufgaben und Wartungen ansehen <span>›</span></button><div class="today-heading">Unsere Bereiche</div><div class="grid home-tiles">${ordered.map(m=>`<button class="tile" onclick="go('${m[0]}')"><span class="emoji">${m[1]}</span><span><strong>${m[2]}</strong><br><small>${m[3]}</small>${['tasks','yard'].includes(m[0])?`<span class="tile-count" onclick="event.stopPropagation();go('${m[0]}')">${(allTasksResult.data||[]).filter(t=>t.category===(m[0]==='yard'?'hof':'haushalt')).length||''}</span>`:m[0]==='shopping'&&shoppingResult.data?.length?`<span class="tile-count" onclick="event.stopPropagation();go('shopping')">${shoppingResult.data.length}</span>`:''}</span></button>`).join('')}</div>`);
  if(tasksResult.error||eventsResult.error||mealResult.error)toast('Tagesübersicht konnte teilweise nicht geladen werden');
 }
-function settings(){render(back()+`<h2>Einstellungen</h2><div class="card"><h3>Mein Design</h3><label>Farbthema</label><select id="theme" onchange="changeTheme(this.value)">${Object.entries(themeNames).map(([k,v])=>`<option value="${k}" ${prefs.theme===k?'selected':''}>${v}</option>`).join('')}</select></div><div class="card"><h3>Meine Kacheln</h3><p class="muted">Die Kacheln auf der Startseite folgen dieser Reihenfolge.</p><div class="stack">${[...new Set([...(prefs.tile_layout?.length?prefs.tile_layout:modules.map(x=>x[0])),...modules.map(x=>x[0])])].map((id,i)=>{let m=modules.find(x=>x[0]===id);return m?`<div class="row item"><span>${m[1]} ${m[2]}</span><span><button class="small secondary" onclick="moveTile(${i},-1)">↑</button> <button class="small secondary" onclick="moveTile(${i},1)">↓</button></span></div>`:''}).join('')}</div></div><div class="card"><h3>Erinnerungen</h3><label class="row" style="align-items:center;gap:12px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.muell!==false?'checked':''} onchange="setWasteReminder(this.checked)"><span>Müllabfuhr am Vorabend um 18:00 Uhr erinnern</span></label><p class="muted">Die Einstellung wird pro Benutzer gespeichert. Automatische Push-Nachrichten müssen noch technisch eingerichtet werden.</p></div><div class="card"><h3>🔔 Fälligkeiten in der App</h3><p class="muted">Die Hinweise erscheinen beim Öffnen der App. Automatische Push-Nachrichten bei geschlossener App sind noch nicht eingerichtet.</p><label>Aufgaben anzeigen ab</label><select onchange="setReminderPreference('task_lead_days',Number(this.value))">${[3,7,14,30].map(n=>`<option value="${n}" ${Number(prefs.push_preferences?.task_lead_days??7)===n?'selected':''}>${n} Tage vorher</option>`).join('')}</select><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.task_reminders!==false?'checked':''} onchange="setReminderPreference('task_reminders',this.checked)"><span>Aufgaben in Erinnerungen anzeigen</span></label><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.maintenance_reminders!==false?'checked':''} onchange="setReminderPreference('maintenance_reminders',this.checked)"><span>Wartungen und TÜV anzeigen</span></label><button class="secondary small" onclick="go('reminders')">🔔 Zur Erinnerungsübersicht</button></div><div class="card"><h3>Benutzerkonto</h3><p class="muted">${esc(user.email)}</p><button class="secondary" onclick="signOut()">Abmelden</button></div><div class="card"><h3>Verbindung & Synchronisierung</h3><p class="muted">Supabase: angemeldet. Gemeinsame Änderungen werden per Echtzeitkanal und regelmäßigem Wiederabgleich geladen. Status: <span id="hh-sync-state">${esc(hhLiveStatus)}</span>.</p><p class="muted">Bei geschlossenem Browser oder ohne Internet werden keine neuen Änderungen empfangen. Die Einstellungen für Echtzeitbenachrichtigungen müssen in Supabase für die verwendeten Tabellen aktiviert sein.</p><button class="secondary small" onclick="hhLiveRequestRefresh();toast('Abgleich angefordert')">Jetzt abgleichen</button></div>`)}
+function settings(){render(back()+`<h2>Einstellungen</h2><div class="card"><h3>Mein Design</h3><label>Farbthema</label><select id="theme" onchange="changeTheme(this.value)">${Object.entries(themeNames).map(([k,v])=>`<option value="${k}" ${prefs.theme===k?'selected':''}>${v}</option>`).join('')}</select></div><div class="card"><h3>Meine Kacheln</h3><p class="muted">Die Kacheln auf der Startseite folgen dieser Reihenfolge.</p><div class="stack">${[...new Set([...(prefs.tile_layout?.length?prefs.tile_layout:modules.map(x=>x[0])),...modules.map(x=>x[0])])].map((id,i)=>{let m=modules.find(x=>x[0]===id);return m?`<div class="row item"><span>${m[1]} ${m[2]}</span><span><button class="small secondary" onclick="moveTile(${i},-1)">↑</button> <button class="small secondary" onclick="moveTile(${i},1)">↓</button></span></div>`:''}).join('')}</div></div><div class="card"><h3>Erinnerungen</h3><label class="row" style="align-items:center;gap:12px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.muell!==false?'checked':''} onchange="setWasteReminder(this.checked)"><span>Müllabfuhr am Vorabend um 18:00 Uhr erinnern</span></label><p class="muted">Die Einstellung wird pro Benutzer gespeichert. Automatische Push-Nachrichten müssen noch technisch eingerichtet werden.</p></div><div class="card"><h3>🔔 Fälligkeiten in der App</h3><p class="muted">Die Hinweise erscheinen beim Öffnen der App. Automatische Push-Nachrichten bei geschlossener App sind noch nicht eingerichtet.</p><label>Aufgaben anzeigen ab</label><select onchange="setReminderPreference('task_lead_days',Number(this.value))">${[3,7,14,30].map(n=>`<option value="${n}" ${Number(prefs.push_preferences?.task_lead_days??7)===n?'selected':''}>${n} Tage vorher</option>`).join('')}</select><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.task_reminders!==false?'checked':''} onchange="setReminderPreference('task_reminders',this.checked)"><span>Aufgaben in Erinnerungen anzeigen</span></label><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.maintenance_reminders!==false?'checked':''} onchange="setReminderPreference('maintenance_reminders',this.checked)"><span>Wartungen und TÜV anzeigen</span></label><button class="secondary small" onclick="go('reminders')">🔔 Zur Erinnerungsübersicht</button></div><div class="card"><h3>💾 Datensicherung</h3><p class="muted">Sichere eure gemeinsamen Haus-&-Hof-Daten inklusive Rezeptbildern als Datei auf deinem Gerät. Die automatische Supabase-Speicherung bleibt unverändert.</p><div class="actions"><button onclick="hhBackupDownload()" id="hh-backup-download">⬇ Sicherung herunterladen</button><button class="secondary" onclick="hhBackupOpenRestore()">↥ Sicherung wiederherstellen</button></div><p class="muted" style="font-size:12px">Wiederherstellung nur im selben Haushalt. Bereits vorhandene Datensätze bleiben unverändert. Bitte die Datei sicher aufbewahren: Sie enthält eure privaten Haushaltsdaten.</p><div id="hh-backup-status" role="status" aria-live="polite"></div></div><div class="card"><h3>Benutzerkonto</h3><p class="muted">${esc(user.email)}</p><button class="secondary" onclick="signOut()">Abmelden</button></div><div class="card"><h3>Verbindung & Synchronisierung</h3><p class="muted">Supabase: angemeldet. Gemeinsame Änderungen werden per Echtzeitkanal und regelmäßigem Wiederabgleich geladen. Status: <span id="hh-sync-state">${esc(hhLiveStatus)}</span>.</p><p class="muted">Bei geschlossenem Browser oder ohne Internet werden keine neuen Änderungen empfangen. Die Einstellungen für Echtzeitbenachrichtigungen müssen in Supabase für die verwendeten Tabellen aktiviert sein.</p><button class="secondary small" onclick="hhLiveRequestRefresh();toast('Abgleich angefordert')">Jetzt abgleichen</button></div>`)}
 function setReminderPreference(k,value){prefs.push_preferences={...(prefs.push_preferences||{}),[k]:value};savePrefs();toast('Erinnerungseinstellung gespeichert')}
 function setWasteReminder(on){prefs.push_preferences={...(prefs.push_preferences||{}),muell:on};savePrefs();toast(on?'Müllerinnerung eingeschaltet':'Müllerinnerung ausgeschaltet')}
 function changeTheme(t){prefs.theme=t;applyTheme(t);savePrefs()}
@@ -1131,4 +1158,140 @@ async function reminders(){
  html+=`<p class="muted" style="font-size:12px;margin-top:20px">Hinweise aktualisieren sich beim Öffnen dieser Ansicht. Für Benachrichtigungen bei geschlossener App ist später ein separater Push-Dienst erforderlich.</p>`;
  render(html);
 }
+
+// V2.1.5 – manuelle Datensicherung des angemeldeten Haushalts.
+// Fremde Haushalte und Benutzerkonten werden niemals importiert.
+const HH_BACKUP_VERSION=1;
+// Reihenfolge ist wichtig: referenzierte Eltern vor Kinddatensaetzen.
+const HH_BACKUP_TABLES=[
+ 'recipes','assets','shopping_lists','tasks','ideas','calendar_events',
+ 'maintenance','recipe_ingredients','meal_plan','shopping_items',
+ 'task_completions','asset_expenses','maintenance_history'
+];
+// Diese Tabellen existieren nur in bestimmten Installationen.
+const HH_BACKUP_OPTIONAL=['idea_photos','waste_calendar_imports'];
+let hhBackupCandidate=null;
+function hhBackupStatus(message,problem=false){
+ const el=document.getElementById('hh-backup-status');
+ if(el){el.textContent=message;el.className=problem?'error':'muted';el.style.marginTop='12px';}
+ if(problem)toast(message);
+}
+function hhBackupMissingTable(error){
+ return ['42P01','PGRST205','PGRST116'].includes(String(error?.code||'')) && /not found|could not find|does not exist|schema cache/i.test(String(error?.message||''));
+}
+async function hhBackupReadTable(table,optional=false){
+ // Supabase/PostgREST begrenzt oft auf 1000 Zeilen pro Anfrage.
+ // Das feste ID-Sortierkriterium sorgt fuer reproduzierbare Seiten.
+ const all=[];const step=500;
+ for(let n=0;n<100000;n+=step){
+  const {data,error}=await client.from(table).select('*').eq('household_id',household).order('id',{ascending:true}).range(n,n+step-1);
+  if(error){if(optional&&hhBackupMissingTable(error))return null;throw new Error(table+': '+error.message)}
+  const page=data||[];all.push(...page);
+  if(page.length<step)return all;
+ }
+ throw new Error(table+': Sicherheitsgrenze beim Lesen erreicht.');
+}
+async function hhBackupDownload(){
+ if(!client||!user||!household){toast('Bitte zuerst anmelden');return;}
+ const btn=document.getElementById('hh-backup-download');
+ if(btn)btn.disabled=true;
+ hhBackupStatus('Sicherungsdatei wird zusammengestellt …');
+ try{
+  const tables={},skipped=[];let total=0;
+  for(const name of [...HH_BACKUP_TABLES,...HH_BACKUP_OPTIONAL]){
+   hhBackupStatus('Lese '+name+' …');
+   const rows=await hhBackupReadTable(name,HH_BACKUP_OPTIONAL.includes(name));
+   if(rows===null){skipped.push(name);continue;}
+   tables[name]=rows;total+=rows.length;
+  }
+  const {data:up,error:upError}=await client.from('user_preferences').select('*').eq('user_id',user.id).maybeSingle();
+  if(upError)throw new Error('Benutzereinstellungen: '+upError.message);
+  const backup={format:'haus-hof-backup',format_version:HH_BACKUP_VERSION,app_version:'2.1.5',created_at:new Date().toISOString(),household_id:household,created_by:user.id,tables,user_preferences:up||null,skipped_optional_tables:skipped};
+  const json=JSON.stringify(backup,null,2);
+  const blob=new Blob([json],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');link.href=url;
+  link.download='Haus-und-Hof-Sicherung-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  hhBackupStatus('Sicherung erstellt: '+total+' Datensätze. Bitte prüfen, ob die Datei in „Dateien“ gespeichert wurde.'+(skipped.length?' Nicht vorhandene optionale Tabellen: '+skipped.join(', ')+'.':''));
+ }catch(e){hhBackupStatus('Sicherung nicht erstellt: '+(e?.message||e),true)}
+ finally{if(btn)btn.disabled=false;}
+}
+function hhBackupOpenRestore(){
+ hhBackupCandidate=null;
+ const element=document.createElement('div');element.id='hh-restore-panel';
+ document.getElementById('hh-restore-panel')?.remove();
+ element.className='card';
+ element.innerHTML='<h3>Datensicherung einlesen</h3><p class="muted">Wähle eine von Haus & Hof erstellte JSON-Sicherungsdatei. Die App prüft zuerst den Haushalt und zeigt die enthaltenen Einträge. Noch wird nichts gespeichert.</p><input type="file" id="hh-backup-file" accept=".json,application/json" aria-label="Sicherungsdatei auswählen"><div id="hh-backup-preview" role="status" style="margin-top:12px"></div><div class="actions"><button class="secondary" onclick="hhBackupCloseRestore()">Abbrechen</button><button id="hh-backup-restore-button" disabled onclick="hhBackupRestore()">Fehlende Daten wiederherstellen</button></div>';
+ const anchor=document.getElementById('hh-backup-status');
+ (anchor?.parentElement||document.getElementById('app')).appendChild(element);
+ element.querySelector('#hh-backup-file').addEventListener('change',hhBackupFileChanged);
+}
+function hhBackupCloseRestore(){hhBackupCandidate=null;document.getElementById('hh-restore-panel')?.remove()}
+async function hhBackupFileChanged(event){
+ hhBackupCandidate=null;
+ const output=document.getElementById('hh-backup-preview'),button=document.getElementById('hh-backup-restore-button');
+ if(button)button.disabled=true;
+ const file=event.target.files?.[0];if(!file)return;
+ try{
+  if(file.size>80*1024*1024)throw new Error('Datei ist größer als 80 MB. Bitte eine kleinere Sicherungsdatei verwenden.');
+  const backup=JSON.parse(await file.text());
+  if(backup?.format!=='haus-hof-backup'||backup.format_version!==HH_BACKUP_VERSION)throw new Error('Diese Datei ist keine unterstützte Haus-&-Hof-Sicherung.');
+  if(!household||backup.household_id!==household)throw new Error('Die Sicherung gehört nicht zum angemeldeten Haushalt.');
+  if(!backup.tables||typeof backup.tables!=='object'||Array.isArray(backup.tables))throw new Error('Die Tabellen fehlen in der Sicherung.');
+  const entries=[];
+  for(const [name,rows] of Object.entries(backup.tables)){
+   if(![...HH_BACKUP_TABLES,...HH_BACKUP_OPTIONAL].includes(name)||!Array.isArray(rows))throw new Error('Ungültige Tabelle: '+name);
+   if(rows.length>100000)throw new Error('Zu viele Datensätze in '+name);
+   const seen=new Set();
+   for(const row of rows){
+    if(!row||typeof row!=='object'||Array.isArray(row)||row.household_id!==household||typeof row.id!=='string'||! /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(row.id)||seen.has(row.id))throw new Error('Ungültiger Datensatz in '+name);
+    seen.add(row.id);
+   }
+   entries.push([name,rows.length]);
+  }
+  for(const name of HH_BACKUP_TABLES)if(!Array.isArray(backup.tables[name]))throw new Error('Die erforderliche Tabelle '+name+' fehlt.');
+  hhBackupCandidate=backup;
+  if(output)output.innerHTML='<p><strong>'+entries.reduce((s,x)=>s+x[1],0)+' Datensätze</strong> in '+entries.length+' Tabellen.</p><p class="muted">'+entries.map(([n,v])=>esc(n)+': '+v).join(' · ')+'</p><p class="muted">Gesichert am '+esc(new Date(backup.created_at).toLocaleString('de-DE'))+'. Vorhandene IDs werden übersprungen. Diese Aktion löscht oder überschreibt nichts.</p>';
+  if(button)button.disabled=false;
+ }catch(e){if(output)output.textContent='Datei nicht verwendbar: '+(e?.message||e);}
+}
+async function hhBackupRestore(){
+ const backup=hhBackupCandidate;
+ if(!backup||!user||!household||backup.household_id!==household)return;
+ if(!await appConfirm('Fehlende Datensätze aus dieser Sicherung in den aktuellen Haushalt einfügen? Vorhandene Einträge bleiben unverändert. Bei einem Fehler können bereits eingefügte Datensätze bestehen bleiben.','Datensicherung wiederherstellen?'))return;
+ const button=document.getElementById('hh-backup-restore-button');if(button)button.disabled=true;
+ let inserted=0,skipped=0;
+ const view=document.getElementById('hh-backup-preview');
+ try{
+  // Reihenfolge inkl. optionaler Tabellen, damit abhaengige Zeilen zuletzt kommen.
+  for(const name of [...HH_BACKUP_TABLES,...HH_BACKUP_OPTIONAL]){
+   const rows=backup.tables[name];if(!rows?.length)continue;
+   if(view)view.textContent='Prüfe '+name+' … ('+inserted+' ergänzt)';
+   const existing=await hhBackupReadTable(name,HH_BACKUP_OPTIONAL.includes(name));
+   if(existing===null)throw new Error('Zieltabelle fehlt: '+name);
+   const ids=new Set(existing.map(row=>row.id));
+   const missing=rows.filter(row=>!ids.has(row.id));skipped+=rows.length-missing.length;
+   for(let i=0;i<missing.length;i+=20){
+    const chunk=missing.slice(i,i+20).map(row=>({...row,household_id:household}));
+    const {error}=await client.from(name).insert(chunk);
+    if(error)throw new Error(name+': '+error.message);
+    inserted+=chunk.length;
+    if(view)view.textContent=name+': '+inserted+' ergänzt, '+skipped+' bereits vorhanden.';
+   }
+  }
+  // Benutzerpraeferenzen absichtlich nicht importieren: Sie gehoeren einem eigenen Konto.
+  if(view)view.textContent='Wiederherstellung abgeschlossen: '+inserted+' Datensätze ergänzt, '+skipped+' bereits vorhanden. Persönliche Einstellungen wurden nicht überschrieben.';
+  hhBackupStatus('Wiederherstellung abgeschlossen.');
+  hhBackupCandidate=null;
+  await hhLiveRequestRefresh();
+ }catch(e){
+  if(view)view.textContent='Wiederherstellung angehalten: '+(e?.message||e)+'. Bis dahin wurden '+inserted+' Einträge ergänzt. Es wurde nichts gelöscht. Prüfe die Ursache, bevor du den Import erneut startest.';
+  hhBackupStatus('Wiederherstellung nicht vollständig.',true);
+  // Erneut ausfuehren ist moeglich und fuegt nur weiterhin fehlende IDs hinzu.
+  if(button)button.disabled=false;
+ }
+}
+
 </script></body></html>
