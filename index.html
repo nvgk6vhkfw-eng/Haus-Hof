@@ -217,14 +217,7 @@ html:has(input:focus) .hh-bottom-nav,html:has(textarea:focus) .hh-bottom-nav,htm
 .hh-note-detail>summary{cursor:pointer;list-style:none;padding:8px 0 2px;color:var(--accent);font-size:11px}
 .hh-note-detail>summary::-webkit-details-marker{display:none}
 .hh-note-detail>p{margin:5px 0 2px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
-.shop-head{margin:4px 0 13px}.shop-notes{gap:10px;margin:12px 1px 21px}
-.shop-note,.shop-note:nth-child(even){transform:none!important;min-height:112px;padding:16px 9px 12px;box-shadow:none;border-radius:13px;background:var(--panel)!important;border:1px solid var(--line);color:var(--text)}
-.shop-note::before,.shop-detail-note::before{display:none}
-.shop-note .note-symbol{font-size:25px;margin:0 0 6px}
-.shop-note strong{font-size:14px;line-height:1.22}
-.shop-note small{font-size:11px;margin-top:5px;color:var(--muted)}
-.shop-detail-note{transform:none;max-width:none;min-height:0;padding:13px 15px;margin:8px 0 13px;background:var(--panel);border:1px solid var(--line);color:var(--text);box-shadow:none;border-radius:15px}
-.shop-detail-note strong{font-size:17px}.shop-detail-note p{font-size:12px;color:var(--muted);margin-top:4px}
+/* V2.1.1: Einkaufszettel wieder wie in V2.0.6 als bunte Post-its. */
 .shop-item-grid{gap:6px}.shop-item-grid .shop-item{min-height:52px;padding:8px 7px;box-shadow:none}
 .shop-item-grid .shop-item .shop-name{font-size:12px;line-height:1.27}
 .shop-item-grid .shop-item .shop-qty{font-size:11px}
@@ -280,7 +273,7 @@ function toast(t){let el=$('#toast');el.textContent=t;el.style.display='block';c
 function applyTheme(t){let a=themes[t]||themes.black_copper;['bg','panel','panel2','text','muted','accent','line'].forEach((n,i)=>document.documentElement.style.setProperty('--'+n,a[i]));document.querySelector('meta[name="theme-color"]').content=a[0]}
 function header(){return `<header><div><h1>Haus <span style="color:var(--accent)">&</span> Hof</h1><div class="sub">Unser Zuhause. Gemeinsam organisiert.</div></div><div class="topactions">${user?`<button class="hh-settings" onclick="go('settings')" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button>`:''}</div></header>`}
 function hhMobileNav(){if(!user||!household)return '';const items=[['⌂','Start','go(\'home\')',page==='home'],['▦','Woche','openRecipeTab(\'week\')',page==='recipes'&&recipeTab==='week'],['🛒','Einkauf','go(\'shopping\')',page==='shopping'],['▤','Rezepte','openRecipeTab(\'list\')',page==='recipes'&&recipeTab==='list']];return `<nav class="hh-bottom-nav" aria-label="Schnellnavigation"><div class="hh-bottom-nav-inner">${items.map(([icon,name,action,active])=>`<button type="button" class="hh-nav-btn ${active?'active':''}" ${active?'aria-current="page"':''} onclick="${action}"><span class="hh-nav-icon" aria-hidden="true">${icon}</span><span>${name}</span></button>`).join('')}</div></nav>`}
-function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 2.1 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
+function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 2.1.1 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
 function openRecipeTab(tab){if(!user||!household)return;page='recipes';editing=null;activeShoppingId=null;recipes(tab)}
 function hhHomeDisclosureChange(el,key){try{localStorage.setItem(key,el.open?'1':'0')}catch(e){}}
 function hhHomeDisclosureOpen(key,defaultOpen){try{let value=localStorage.getItem(key);return value===null?defaultOpen:value==='1'}catch(e){return defaultOpen}}
@@ -300,56 +293,33 @@ async function start(){let {data:{user:u}}=await client.auth.getUser();user=u;if
 async function savePrefs(){let {error}=await client.from('user_preferences').upsert({user_id:user.id,theme:prefs.theme,tile_layout:prefs.tile_layout,push_preferences:prefs.push_preferences});if(error)toast(error.message)}
 function go(p){if(p!=='shopping')activeShoppingId=null;page=p;editing=null;if(p==='home')home();else if(p==='settings')settings();else if(p==='tasks'||p==='yard')tasks(p);else if(p==='recipes')recipes();else if(p==='shopping')shopping();else if(p==='ideas')ideas();else if(p==='assets')assets();else if(p==='calendar')calendar();else if(p==='reminders')reminders()}
 async function home(){
-  const thisHousehold=household;
-  const order=Array.isArray(prefs.tile_layout)&&prefs.tile_layout.length?prefs.tile_layout:modules.map(m=>m[0]);
-  const ordered=[...modules].sort((a,b)=>(order.includes(a[0])?order.indexOf(a[0]):100+modules.findIndex(m=>m[0]===a[0]))-(order.includes(b[0])?order.indexOf(b[0]):100+modules.findIndex(m=>m[0]===b[0])));
-  const today=localISO(),now=new Date().toISOString();
-  const [tasksResult,eventsResult,mealResult,maintenanceResult,allTasksResult,wasteResult,shoppingResult,recipeCountResult]=await Promise.all([
-    client.from('tasks').select('id,title,due_date,category,completed_at').eq('household_id',thisHousehold).is('completed_at',null).not('due_date','is',null).order('due_date',{ascending:true}).limit(1),
-    client.from('calendar_events').select('title,starts_at').eq('household_id',thisHousehold).gte('starts_at',now).order('starts_at',{ascending:true}).limit(1),
-    client.from('meal_plan').select('recipe_id,portions').eq('household_id',thisHousehold).eq('meal_date',today).maybeSingle(),
-    client.from('maintenance').select('title,due_date').eq('household_id',thisHousehold).not('due_date','is',null).order('due_date',{ascending:true}).limit(1),
-    client.from('tasks').select('category,completed_at').eq('household_id',thisHousehold).is('completed_at',null),
-    client.from('calendar_events').select('title,starts_at').eq('household_id',thisHousehold).gte('starts_at',now).like('apple_event_uid','wbc-%').order('starts_at').limit(1),
-    client.from('shopping_lists').select('id').eq('household_id',thisHousehold).eq('status','active'),
-    client.from('recipes').select('id',{count:'exact',head:true}).eq('household_id',thisHousehold)
-  ]);
-  if(page!=='home'||household!==thisHousehold)return;
-  const task=tasksResult.data?.[0],event=eventsResult.data?.[0],meal=mealResult.data,maintenance=maintenanceResult.data?.[0];
-  let mealTitle=null;
-  if(meal?.recipe_id){const {data:r}=await client.from('recipes').select('title').eq('household_id',thisHousehold).eq('id',meal.recipe_id).maybeSingle();mealTitle=r?.title||null}
-  if(page!=='home'||household!==thisHousehold)return;
-  const dateLabel=new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
-  const who=memberNames[user.id]||'ihr zwei';
-  const counts={tasks:(allTasksResult.data||[]).filter(x=>x.category==='haushalt').length,yard:(allTasksResult.data||[]).filter(x=>x.category==='hof').length,shopping:shoppingResult.data?.length||0};
-  const row=(icon,title,subtitle,action,extra='')=>`<div class="hh-today-row"><button type="button" class="hh-today-link" onclick="${action}"><span class="hh-today-symbol" aria-hidden="true">${icon}</span><span class="hh-today-copy"><strong>${esc(title)}</strong><small>${esc(subtitle||'')}</small></span><span class="hh-today-chevron">›</span></button>${extra}</div>`;
-  const taskAction=task?`<button type="button" class="hh-complete" aria-label="${esc(task.title)} als erledigt markieren" title="Als erledigt markieren" onclick="hhCompleteHomeTask('${task.id}')">✓</button>`:'';
-  const taskSubtitle=task?(task.due_date<today?'Überfällig · ':task.due_date===today?'Heute · ':'Fällig am ')+formatDateDE(task.due_date):'Tippen, um Aufgaben anzulegen';
-  const todayRows=row('♨',mealTitle||'Noch kein Essen geplant',mealTitle?`${meal.portions||2} Portionen · Heute`:'Wochenplan öffnen',`openRecipeTab('week')`)
-    +row('✓',task?.title||'Keine anstehende Aufgabe',taskSubtitle,`go('${task?.category==='hof'?'yard':'tasks'}')`,taskAction)
-    +row('▦',event?.title||'Kein nächster Termin',event?new Date(event.starts_at).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Kalender öffnen',`go('calendar')`)
-    +(maintenance?row('⚙',maintenance.title,`${maintenance.due_date<today?'Überfällig · ':''}${formatDateDE(maintenance.due_date)}`,`go('assets')`):'')
-    +(wasteResult.data?.[0]?row('♻',wasteResult.data[0].title,new Date(wasteResult.data[0].starts_at).toLocaleDateString('de-DE'),`go('calendar')`):'');
-  const todayOpen=hhHomeDisclosureOpen('hh21_today_open',true),moreOpen=hhHomeDisclosureOpen('hh21_more_open',false);
-  const shortcuts=[
-    ['▦','Wochenplan','Gerichte und Portionen',`openRecipeTab('week')`],
-    ['🛒','Einkaufsliste',counts.shopping?`${counts.shopping} aktive Liste${counts.shopping===1?'':'n'}`:'Gemeinsam einkaufen',`go('shopping')`],
-    ['▤','Rezepte',recipeCountResult.count!=null?`${recipeCountResult.count} Rezepte`:'Sammlung ansehen',`openRecipeTab('list')`],
-    ['✓','Aufgaben',counts.tasks?`${counts.tasks} im Haushalt offen`:'Haushalt organisieren',`go('tasks')`]
-  ];
-  const mainIds=new Set(['recipes','shopping','tasks']);
-  const more=ordered.filter(m=>!mainIds.has(m[0]));
-  const extraTile=m=>`<button type="button" class="tile" onclick="go('${m[0]}')"><span class="emoji" aria-hidden="true">${m[1]}</span><span><strong>${esc(m[2])}</strong>${m[0]==='yard'&&counts.yard?`<span class="tile-count">${counts.yard}</span>`:''}</span></button>`;
-  render(`<p class="hh-home-greeting"><strong>Hallo ${esc(who)} 👋</strong> · ${esc(dateLabel)}</p>`
-    +`<details class="hh-today" ${todayOpen?'open':''} ontoggle="hhHomeDisclosureChange(this,'hh21_today_open')"><summary>Heute im Überblick <span class="hh-summary-icon" aria-hidden="true">⌄</span></summary><div class="hh-today-content">${todayRows}</div></details>`
-    +`<button type="button" class="hh-reminder-strip" onclick="go('reminders')"><span>🔔 Erinnerungen & Fälligkeiten</span><span>›</span></button>`
-    +`<div class="hh-section-title">Schnellzugriff</div><div class="hh-shortcuts">${shortcuts.map(([icon,name,sub,action])=>`<button type="button" class="hh-shortcut" onclick="${action}"><span class="hh-shortcut-icon" aria-hidden="true">${icon}</span><strong>${esc(name)}</strong><small>${esc(sub)}</small></button>`).join('')}</div>`
-    +`<div class="hh-quick-actions"><button class="secondary" onclick="hhQuickTask()">＋ Aufgabe</button><button class="secondary" onclick="hhQuickShopping()">＋ Einkaufsartikel</button></div>`
-    +`<details class="hh-more" ${moreOpen?'open':''} ontoggle="hhHomeDisclosureChange(this,'hh21_more_open')"><summary>Alle weiteren Bereiche <span class="hh-summary-icon" aria-hidden="true">⌄</span></summary><div class="hh-more-content"><div class="hh-more-grid">${more.map(extraTile).join('')}</div></div></details>`);
-  if(tasksResult.error||eventsResult.error||mealResult.error||maintenanceResult.error||allTasksResult.error||shoppingResult.error||recipeCountResult.error)toast('Tagesübersicht konnte teilweise nicht geladen werden');
+ const thisHousehold=household;
+ const order=Array.isArray(prefs.tile_layout)&&prefs.tile_layout.length?prefs.tile_layout:modules.map(m=>m[0]);
+ const ordered=[...modules].sort((a,b)=>(order.includes(a[0])?order.indexOf(a[0]):100+modules.findIndex(m=>m[0]===a[0]))-(order.includes(b[0])?order.indexOf(b[0]):100+modules.findIndex(m=>m[0]===b[0])));
+ const today=new Date().toLocaleDateString('en-CA');
+ const now=new Date().toISOString();
+ const [tasksResult,eventsResult,mealResult,maintenanceResult,allTasksResult,wasteResult,shoppingResult]=await Promise.all([
+  client.from('tasks').select('title,due_date,category,completed_at').eq('household_id',thisHousehold).is('completed_at',null).not('due_date','is',null).order('due_date',{ascending:true}).limit(1),
+  client.from('calendar_events').select('title,starts_at').eq('household_id',thisHousehold).gte('starts_at',now).order('starts_at',{ascending:true}).limit(1),
+  client.from('meal_plan').select('recipe_id,portions').eq('household_id',thisHousehold).eq('meal_date',today).maybeSingle(),
+  client.from('maintenance').select('title,due_date').eq('household_id',thisHousehold).gte('due_date',today).order('due_date').limit(1),
+  client.from('tasks').select('category,completed_at').eq('household_id',thisHousehold).is('completed_at',null),
+  client.from('calendar_events').select('title,starts_at').eq('household_id',thisHousehold).gte('starts_at',now).like('apple_event_uid','wbc-%').order('starts_at').limit(1),
+  client.from('shopping_lists').select('id').eq('household_id',thisHousehold).eq('status','active')
+ ]);
+ if(page!=='home'||household!==thisHousehold)return;
+ let task=tasksResult.data?.[0],event=eventsResult.data?.[0],meal=mealResult.data,mealTitle=null;
+ if(meal?.recipe_id){let r=await client.from('recipes').select('title').eq('household_id',thisHousehold).eq('id',meal.recipe_id).maybeSingle();mealTitle=r.data?.title||null}
+ if(page!=='home'||household!==thisHousehold)return;
+ const dateLabel=new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
+ const taskDate=task?.due_date?new Date(task.due_date+'T12:00:00').toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}):'';
+ const eventDate=event?new Date(event.starts_at).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+ const line=(icon,label,value,meta,target)=>`<button class="today-line" onclick="go('${target}')"><span class="today-icon">${icon}</span><span class="today-content"><span class="today-label">${label}</span><span class="today-value">${esc(value)}</span>${meta?`<span class="today-meta">${esc(meta)}</span>`:''}</span><span class="today-arrow">›</span></button>`;
+ const overview=`<div class="today-card">${line('✓','Nächste Aufgabe',task?.title||'Keine fälligen Aufgaben',task?(task.due_date<today?'Überfällig · ':task.due_date===today?'Heute · ':'Fällig am ')+taskDate:'',task?.category==='hof'?'yard':'tasks')}${line('▦','Nächster Termin',event?.title||'Kein anstehender Termin',eventDate,'calendar')}${line('♨','Heute gibt es',mealTitle||'Noch kein Essen geplant',mealTitle?meal.portions+' Portionen':'','recipes')}${maintenanceResult.data?.[0]?line('🔧','Nächste Wartung',maintenanceResult.data[0].title,formatDateDE(maintenanceResult.data[0].due_date),'assets'):''}${wasteResult.data?.[0]?line('🗑','Nächste Müllabfuhr',wasteResult.data[0].title,new Date(wasteResult.data[0].starts_at).toLocaleDateString('de-DE'),'calendar'):''}</div>`;
+ render(`<p class="muted home-greeting">Hallo ${esc(memberNames[user.id]||'ihr zwei')} 👋 · ${esc(dateLabel)}</p>${overview}<button class="reminder-home-link" onclick="go('reminders')">🔔 Fällige Aufgaben und Wartungen ansehen <span>›</span></button><div class="today-heading">Unsere Bereiche</div><div class="grid home-tiles">${ordered.map(m=>`<button class="tile" onclick="go('${m[0]}')"><span class="emoji">${m[1]}</span><span><strong>${m[2]}</strong><br><small>${m[3]}</small>${['tasks','yard'].includes(m[0])?`<span class="tile-count" onclick="event.stopPropagation();go('${m[0]}')">${(allTasksResult.data||[]).filter(t=>t.category===(m[0]==='yard'?'hof':'haushalt')).length||''}</span>`:m[0]==='shopping'&&shoppingResult.data?.length?`<span class="tile-count" onclick="event.stopPropagation();go('shopping')">${shoppingResult.data.length}</span>`:''}</span></button>`).join('')}</div>`);
+ if(tasksResult.error||eventsResult.error||mealResult.error)toast('Tagesübersicht konnte teilweise nicht geladen werden');
 }
-
-function settings(){render(back()+`<h2>Einstellungen</h2><div class="card"><h3>Mein Design</h3><label>Farbthema</label><select id="theme" onchange="changeTheme(this.value)">${Object.entries(themeNames).map(([k,v])=>`<option value="${k}" ${prefs.theme===k?'selected':''}>${v}</option>`).join('')}</select></div><div class="card"><h3>Meine Kacheln</h3><p class="muted">Die vier Schnellzugriffe auf der Startseite sind fest. Die übrigen Bereiche folgen deiner hier eingestellten Reihenfolge.</p><div class="stack">${[...new Set([...(prefs.tile_layout?.length?prefs.tile_layout:modules.map(x=>x[0])),...modules.map(x=>x[0])])].map((id,i)=>{let m=modules.find(x=>x[0]===id);return m?`<div class="row item"><span>${m[1]} ${m[2]}</span><span><button class="small secondary" onclick="moveTile(${i},-1)">↑</button> <button class="small secondary" onclick="moveTile(${i},1)">↓</button></span></div>`:''}).join('')}</div></div><div class="card"><h3>Erinnerungen</h3><label class="row" style="align-items:center;gap:12px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.muell!==false?'checked':''} onchange="setWasteReminder(this.checked)"><span>Müllabfuhr am Vorabend um 18:00 Uhr erinnern</span></label><p class="muted">Die Einstellung wird pro Benutzer gespeichert. Automatische Push-Nachrichten müssen noch technisch eingerichtet werden.</p></div><div class="card"><h3>🔔 Fälligkeiten in der App</h3><p class="muted">Die Hinweise erscheinen beim Öffnen der App. Automatische Push-Nachrichten bei geschlossener App sind noch nicht eingerichtet.</p><label>Aufgaben anzeigen ab</label><select onchange="setReminderPreference('task_lead_days',Number(this.value))">${[3,7,14,30].map(n=>`<option value="${n}" ${Number(prefs.push_preferences?.task_lead_days??7)===n?'selected':''}>${n} Tage vorher</option>`).join('')}</select><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.task_reminders!==false?'checked':''} onchange="setReminderPreference('task_reminders',this.checked)"><span>Aufgaben in Erinnerungen anzeigen</span></label><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.maintenance_reminders!==false?'checked':''} onchange="setReminderPreference('maintenance_reminders',this.checked)"><span>Wartungen und TÜV anzeigen</span></label><button class="secondary small" onclick="go('reminders')">🔔 Zur Erinnerungsübersicht</button></div><div class="card"><h3>Benutzerkonto</h3><p class="muted">${esc(user.email)}</p><button class="secondary" onclick="signOut()">Abmelden</button></div><div class="card"><h3>Verbindung</h3><p class="muted">Supabase verbunden. Nur öffentliche Verbindungsschlüssel verwenden.</p></div>`)}
+function settings(){render(back()+`<h2>Einstellungen</h2><div class="card"><h3>Mein Design</h3><label>Farbthema</label><select id="theme" onchange="changeTheme(this.value)">${Object.entries(themeNames).map(([k,v])=>`<option value="${k}" ${prefs.theme===k?'selected':''}>${v}</option>`).join('')}</select></div><div class="card"><h3>Meine Kacheln</h3><p class="muted">Die Kacheln auf der Startseite folgen dieser Reihenfolge.</p><div class="stack">${[...new Set([...(prefs.tile_layout?.length?prefs.tile_layout:modules.map(x=>x[0])),...modules.map(x=>x[0])])].map((id,i)=>{let m=modules.find(x=>x[0]===id);return m?`<div class="row item"><span>${m[1]} ${m[2]}</span><span><button class="small secondary" onclick="moveTile(${i},-1)">↑</button> <button class="small secondary" onclick="moveTile(${i},1)">↓</button></span></div>`:''}).join('')}</div></div><div class="card"><h3>Erinnerungen</h3><label class="row" style="align-items:center;gap:12px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.muell!==false?'checked':''} onchange="setWasteReminder(this.checked)"><span>Müllabfuhr am Vorabend um 18:00 Uhr erinnern</span></label><p class="muted">Die Einstellung wird pro Benutzer gespeichert. Automatische Push-Nachrichten müssen noch technisch eingerichtet werden.</p></div><div class="card"><h3>🔔 Fälligkeiten in der App</h3><p class="muted">Die Hinweise erscheinen beim Öffnen der App. Automatische Push-Nachrichten bei geschlossener App sind noch nicht eingerichtet.</p><label>Aufgaben anzeigen ab</label><select onchange="setReminderPreference('task_lead_days',Number(this.value))">${[3,7,14,30].map(n=>`<option value="${n}" ${Number(prefs.push_preferences?.task_lead_days??7)===n?'selected':''}>${n} Tage vorher</option>`).join('')}</select><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.task_reminders!==false?'checked':''} onchange="setReminderPreference('task_reminders',this.checked)"><span>Aufgaben in Erinnerungen anzeigen</span></label><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.maintenance_reminders!==false?'checked':''} onchange="setReminderPreference('maintenance_reminders',this.checked)"><span>Wartungen und TÜV anzeigen</span></label><button class="secondary small" onclick="go('reminders')">🔔 Zur Erinnerungsübersicht</button></div><div class="card"><h3>Benutzerkonto</h3><p class="muted">${esc(user.email)}</p><button class="secondary" onclick="signOut()">Abmelden</button></div><div class="card"><h3>Verbindung</h3><p class="muted">Supabase verbunden. Nur öffentliche Verbindungsschlüssel verwenden.</p></div>`)}
 function setReminderPreference(k,value){prefs.push_preferences={...(prefs.push_preferences||{}),[k]:value};savePrefs();toast('Erinnerungseinstellung gespeichert')}
 function setWasteReminder(on){prefs.push_preferences={...(prefs.push_preferences||{}),muell:on};savePrefs();toast(on?'Müllerinnerung eingeschaltet':'Müllerinnerung ausgeschaltet')}
 function changeTheme(t){prefs.theme=t;applyTheme(t);savePrefs()}
