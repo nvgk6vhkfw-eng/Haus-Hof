@@ -341,7 +341,7 @@ function toast(t){let el=$('#toast');el.textContent=t;el.style.display='block';c
 function applyTheme(t){let a=themes[t]||themes.black_copper;['bg','panel','panel2','text','muted','accent','line'].forEach((n,i)=>document.documentElement.style.setProperty('--'+n,a[i]));document.querySelector('meta[name="theme-color"]').content=a[0]}
 function header(){return `<header><div><h1>Haus <span style="color:var(--accent)">&</span> Hof</h1><div class="sub">Unser Zuhause. Gemeinsam organisiert.</div></div><div class="topactions">${user?`<button class="hh-settings" onclick="go('settings')" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button>`:''}</div></header>`}
 function hhMobileNav(){if(!user||!household)return '';const items=[['⌂','Start','go(\'home\')',page==='home'],['▦','Woche','openRecipeTab(\'week\')',page==='recipes'&&recipeTab==='week'],['🛒','Einkauf','go(\'shopping\')',page==='shopping'],['▤','Rezepte','openRecipeTab(\'list\')',page==='recipes'&&recipeTab==='list']];return `<nav class="hh-bottom-nav" aria-label="Schnellnavigation"><div class="hh-bottom-nav-inner">${items.map(([icon,name,action,active])=>`<button type="button" class="hh-nav-btn ${active?'active':''}" ${active?'aria-current="page"':''} onclick="${action}"><span class="hh-nav-icon" aria-hidden="true">${icon}</span><span>${name}</span></button>`).join('')}</div></nav>`}
-function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 2.2.2 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
+function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 2.2.3 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
 function openRecipeTab(tab){if(!user||!household)return;page='recipes';editing=null;activeShoppingId=null;recipes(tab)}
 function hhHomeDisclosureChange(el,key){try{localStorage.setItem(key,el.open?'1':'0')}catch(e){}}
 function hhHomeDisclosureOpen(key,defaultOpen){try{let value=localStorage.getItem(key);return value===null?defaultOpen:value==='1'}catch(e){return defaultOpen}}
@@ -527,17 +527,74 @@ function drawTaskDatePicker(calendar){
 }
 
 function taskForm(category,x=null){const more=!!x;return `<div class="hh-task-form"><h2>${x?'Aufgabe bearbeiten':'Neue Aufgabe'}</h2><form onsubmit="${x?`saveTask(event,'${x.id}','${taskRoute(category)}')`:`addTask(event,'${category}')`}"><div class="hh-form-basic"><label>Was ist zu tun?</label><input name="title" value="${esc(x?.title||'')}" required maxlength="180" placeholder="z. B. ${category==='hof'?'Zaun reparieren':'Fenster putzen'}" autofocus><div class="formgrid"><div><label>Fällig am (optional)</label><input name="due" type="hidden" value="${esc(x?.due_date||'')}"><button type="button" class="hh-date-trigger" onclick="toggleTaskDatePicker(this)" aria-expanded="false">📅 <span class="hh-date-label">${x?.due_date?esc(formatDateDE(x.due_date)):'Datum auswählen'}</span> <span aria-hidden="true">⌄</span></button><div class="hh-inline-calendar" hidden></div></div><div><label>Zuständig</label><select name="assigned">${assignmentOptions(x||{})}</select></div></div></div><details class="hh-form-more" ${more?'open':''}><summary>↻ Wiederholung & Notizen</summary>${recurrenceFields(x||{})}<label>Notizen</label><textarea name="details" placeholder="Weitere Informationen (optional)">${esc(x?.details||'')}</textarea></details><div class="actions"><button type="submit">${x?'Änderungen speichern':'Aufgabe speichern'}</button><button type="button" class="secondary" onclick="go('${taskRoute(category)}')">Abbrechen</button></div></form></div>`}
+function hhNormalizeTask(x){
+ if(x.repeat_type!=null)return x;
+ const m=x.repeat_mode==='completion'?'after_':'fixed_';
+ const u=x.repeat_unit||'';
+ const type=x.repeat_every?(m==='after_'?{days:'after_days',weeks:'after_weeks',months:'after_months'}[u]:{weeks:'fixed_week',months:'fixed_month',years:'fixed_year'}[u]):null;
+ return {...x,repeat_type:type||'none',repeat_interval:x.repeat_every||1};
+}
 function taskCard(x,p,done=false){const who=x.assigned_to_both?'Beide':x.assigned_to?memberNames[x.assigned_to]||'Zugewiesen':'Offen',today=localISO();const due=x.due_date?(x.due_date<today&&!done?'late':x.due_date===today&&!done?'today':''):'';const meta=[`👤 ${esc(who)}`,x.due_date?`<span class="${due}">📅 ${esc(x.due_date===today?'Heute':formatDateDE(x.due_date))}</span>`:'',x.repeat_type&&x.repeat_type!=='none'?'↻ Wiederholt':''].filter(Boolean).join('<span aria-hidden="true">·</span>');return `<div class="hh-task-row"><div class="hh-task-row-main">${done?'<span class="ok" aria-label="Erledigt">✓</span>':`<input aria-label="${esc(x.title)} erledigen" class="check" type="checkbox" onchange="toggleTask('${x.id}',true,'${p}')">`}<div class="hh-task-body"><strong class="hh-task-title">${esc(x.title)}</strong><div class="hh-task-sub">${meta}</div></div><details class="hh-task-menu"><summary aria-label="Aufgabenoptionen">⋮</summary><div class="hh-task-menu-actions">${done?`<button type="button" onclick="reopenTask('${x.id}','${p}')">↶ Wieder öffnen</button>`:`<button type="button" onclick="editTask('${x.id}','${p}')">✎ Bearbeiten</button>`}<button type="button" class="danger" onclick="deleteAndRefresh('tasks','${x.id}','${p}')">Löschen</button></div></details></div>${x.details?`<details class="hh-task-note"><summary>Notiz ansehen</summary><p>${esc(x.details)}</p></details>`:''}</div>`}
-async function tasks(p,view='open'){const category=p==='yard'?'hof':'haushalt',rows=(await fetchRows('tasks','due_date')).filter(x=>x.category===category);if(page!==p)return;cache.tasks=rows;const completed=rows.filter(x=>x.completed_at),open=rows.filter(x=>!x.completed_at),done=view==='done';render(back()+`<div class="hh-task-top"><div><h2>${category==='hof'?'🌿 Hof & Reparaturen':'🏠 Haushalt'}</h2><small>${open.length} Aufgaben offen</small></div><button class="small" onclick="showTaskForm('${category}')">＋ Neu</button></div><div class="hh-task-tabs"><button class="${!done?'active':''}" onclick="tasks('${p}','open')">Offen (${open.length})</button><button class="${done?'active':''}" onclick="tasks('${p}','done')">Erledigt</button></div>${done?'<p class="muted" style="font-size:12px">Erledigte Aufgaben und die letzten vier Monate der Historie.</p>':''}<div class="hh-task-stack" id="hh-tasks-rows">${(done?completed.sort((a,b)=>(b.completed_at||'').localeCompare(a.completed_at||'')):open).map(x=>taskCard(x,p,done)).join('')||`<p class="muted">${done?'Keine aktuell erledigten Aufgaben.':'Keine offenen Aufgaben.'}</p>`}</div>${done?'<div id="hh-tasks-history"></div>':''}`);if(done)await loadCompletionDetails(completed,p)}
+async function tasks(p,view='open'){const category=p==='yard'?'hof':'haushalt',rows=(await fetchRows('tasks','due_date')).filter(x=>x.category===category).map(hhNormalizeTask);if(page!==p)return;cache.tasks=rows;const completed=rows.filter(x=>x.completed_at),open=rows.filter(x=>!x.completed_at),done=view==='done';render(back()+`<div class="hh-task-top"><div><h2>${category==='hof'?'🌿 Hof & Reparaturen':'🏠 Haushalt'}</h2><small>${open.length} Aufgaben offen</small></div><button class="small" onclick="showTaskForm('${category}')">＋ Neu</button></div><div class="hh-task-tabs"><button class="${!done?'active':''}" onclick="tasks('${p}','open')">Offen (${open.length})</button><button class="${done?'active':''}" onclick="tasks('${p}','done')">Erledigt</button></div>${done?'<p class="muted" style="font-size:12px">Erledigte Aufgaben und die letzten vier Monate der Historie.</p>':''}<div class="hh-task-stack" id="hh-tasks-rows">${(done?completed.sort((a,b)=>(b.completed_at||'').localeCompare(a.completed_at||'')):open).map(x=>taskCard(x,p,done)).join('')||`<p class="muted">${done?'Keine aktuell erledigten Aufgaben.':'Keine offenen Aufgaben.'}</p>`}</div>${done?'<div id="hh-tasks-history"></div>':''}`);if(done)await loadCompletionDetails(completed,p)}
 function showTaskForm(category){render(back()+taskForm(category))}
 function taskPayload(f){let a=f.assigned.value;return {title:f.title.value.trim(),details:f.details.value.trim()||null,due_date:f.due.value||null,assigned_to:a&&a!=='both'?a:null,assigned_to_both:a==='both',repeat_type:f.repeat_type.value,repeat_interval:Math.max(1,Number(f.repeat_interval.value)||1)}}
-async function addTask(e,category){e.preventDefault();let f=e.target,payload={category,...taskPayload(f)};if(payload.repeat_type!=='none'&&!payload.due_date){toast('Für Wiederholungen bitte ein Fälligkeitsdatum angeben');return}const btn=f.querySelector('button[type=submit]');if(btn)btn.disabled=true;try{if(await insert('tasks',payload))go(taskRoute(category))}finally{if(btn?.isConnected)btn.disabled=false}}
+// V2.2.3: Aufgaben speichern ohne Datenbankmigration; kompatibel zu beiden Wiederholungs-Schemata.
+function hhLegacyTaskPayload(values){
+ const v={...values},kind=v.repeat_type||'none',n=Math.max(1,Number(v.repeat_interval)||1);
+ delete v.repeat_type;delete v.repeat_interval;
+ const mapping={fixed_week:['weeks','fixed'],fixed_month:['months','fixed'],fixed_year:['years','fixed'],after_days:['days','completion'],after_weeks:['weeks','completion'],after_months:['months','completion']};
+ const m=mapping[kind];
+ v.repeat_every=m?n:null;v.repeat_unit=m?m[0]:null;v.repeat_mode=m?m[1]:null;
+ return v;
+}
+function hhTaskError(error){
+ const message=String(error?.message||error||'Unbekannter Fehler');
+ const details=error?.details?(' – '+error.details):'';
+ return message+details;
+}
+function hhShowTaskSaveError(message){
+ const form=document.querySelector('.hh-task-form form');
+ if(!form){toast('Aufgabe konnte nicht gespeichert werden');return}
+ let el=form.querySelector('.hh-task-save-error');
+ if(!el){el=document.createElement('div');el.className='notice error hh-task-save-error';el.setAttribute('role','alert');form.appendChild(el)}
+ el.textContent='Speichern fehlgeschlagen: '+message;
+ el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+async function hhWriteTask(values,id=null){
+ // Only try the legacy schema when PostgREST explicitly reports a missing
+ // repeat_type/repeat_interval column. Other errors must not be hidden.
+ const write=payload=>id
+  ?client.from('tasks').update(payload).eq('id',id).eq('household_id',household)
+  :client.from('tasks').insert({household_id:household,...payload});
+ let result=await write(values);
+ const message=String(result.error?.message||'');
+ if(result.error&&/repeat_type|repeat_interval/.test(message)&&/could not find|does not exist|schema cache|column/i.test(message)){
+  result=await write(hhLegacyTaskPayload(values));
+ }
+ if(result.error){hhShowTaskSaveError(hhTaskError(result.error));return false}
+ toast(id?'Aufgabe aktualisiert':'Aufgabe gespeichert');return true;
+}
+async function addTask(e,category){
+ e.preventDefault();const f=e.target,payload={category,...taskPayload(f)};
+ if(payload.repeat_type!=='none'&&!payload.due_date){hhShowTaskSaveError('Für Wiederholungen bitte ein Fälligkeitsdatum angeben');return}
+ const btn=f.querySelector('button[type=submit]');if(btn)btn.disabled=true;
+ try{if(await hhWriteTask(payload))go(taskRoute(category))}
+ catch(err){hhShowTaskSaveError(hhTaskError(err))}
+ finally{if(btn?.isConnected)btn.disabled=false}
+}
 async function toggleTask(id,checked,p){let x=cache.tasks.find(t=>t.id===id);if(!x)return;let now=new Date(),when=now.toLocaleDateString('en-CA');if(checked){let next=nextDue(x,when);if(next){let {error}=await client.from('tasks').update({due_date:next}).eq('id',id).eq('household_id',household);if(error){toast(error.message);return}let {error:histError}=await client.from('task_completions').insert({household_id:household,task_id:id,completed_by:user.id,completed_at:now.toISOString(),task_title:x.title,task_category:x.category,task_due_date:x.due_date});if(histError){toast('Historie konnte nicht gespeichert werden: '+histError.message);return}}else{let {error}=await client.from('tasks').update({completed_at:now.toISOString()}).eq('id',id).eq('household_id',household);if(error){toast(error.message);return}let {error:histError}=await client.from('task_completions').insert({household_id:household,task_id:id,completed_by:user.id,completed_at:now.toISOString(),task_title:x.title,task_category:x.category,task_due_date:x.due_date});if(histError)toast('Erledigt, aber Historie konnte nicht gespeichert werden: '+histError.message)}go(p)}}
 async function loadCompletionDetails(completed,p){const category=p==='yard'?'hof':'haushalt';const {data,error}=await client.from('task_completions').select('*').eq('household_id',household).eq('task_category',category).order('completed_at',{ascending:false});if(error){toast('Historie: '+error.message);return}if(page!==p)return;const history=(data||[]).filter(x=>{const d=new Date(x.completed_at),cut=new Date();cut.setMonth(cut.getMonth()-4);return d>=cut});const container=document.getElementById('hh-tasks-history');if(!container)return;container.innerHTML=`<h3 style="margin:18px 0 9px">Abschlüsse (${history.length})</h3><div class="hh-task-stack">${history.map(x=>`<div class="hh-task-row"><strong class="hh-task-title">${esc(x.task_title||'Aufgabe')}</strong><div class="hh-task-sub">✓ ${esc(new Date(x.completed_at).toLocaleDateString('de-DE'))} · ${esc(memberNames[x.completed_by]||'Mitglied')}</div><div class="actions"><button class="secondary small" onclick="undoCompletion('${x.id}','${p}')">↶ Rückgängig</button></div></div>`).join('')||'<p class="muted">Noch keine abgeschlossenen Aufgaben.</p>'}</div>`}
 async function undoCompletion(id,p){let {data:h,error}=await client.from('task_completions').select('*').eq('id',id).eq('household_id',household).single();if(error){toast(error.message);return}let x=cache.tasks.find(t=>t.id===h.task_id);if(x){let changes=x.completed_at?{completed_at:null}:{due_date:h.task_due_date||x.due_date};let {error:e}=await client.from('tasks').update(changes).eq('id',x.id).eq('household_id',household);if(e){toast(e.message);return}}let {error:e}=await client.from('task_completions').delete().eq('id',id).eq('household_id',household);if(e){toast(e.message);return}tasks(p,'done')}
 async function reopenTask(id,p){let x=cache.tasks.find(t=>t.id===id);if(!x)return;let {error}=await client.from('tasks').update({completed_at:null}).eq('id',id).eq('household_id',household);if(error){toast(error.message);return}let {data}=await client.from('task_completions').select('id').eq('task_id',id).eq('household_id',household).order('completed_at',{ascending:false}).limit(1);if(data?.[0])await client.from('task_completions').delete().eq('id',data[0].id).eq('household_id',household);tasks(p,'done')}
 function editTask(id,p){let x=cache.tasks.find(x=>x.id===id);if(!x)return;render(back()+`<h2>Aufgabe bearbeiten</h2>${taskForm(x.category,x)}`)}
-async function saveTask(e,id,p){e.preventDefault();let payload=taskPayload(e.target);if(payload.repeat_type!=='none'&&!payload.due_date){toast('Für Wiederholungen bitte ein Fälligkeitsdatum angeben');return}const btn=e.target.querySelector('button[type=submit]');if(btn)btn.disabled=true;try{if(await update('tasks',id,payload))go(p)}finally{if(btn?.isConnected)btn.disabled=false}}
+async function saveTask(e,id,p){
+ e.preventDefault();const payload=taskPayload(e.target);
+ if(payload.repeat_type!=='none'&&!payload.due_date){hhShowTaskSaveError('Für Wiederholungen bitte ein Fälligkeitsdatum angeben');return}
+ const btn=e.target.querySelector('button[type=submit]');if(btn)btn.disabled=true;
+ try{if(await hhWriteTask(payload,id))go(p)}
+ catch(err){hhShowTaskSaveError(hhTaskError(err))}
+ finally{if(btn?.isConnected)btn.disabled=false}
+}
 async function deleteAndRefresh(t,id,p){if(await remove(t,id))go(p)}
 async function ideas(){let rows=await fetchRows('ideas');render(back()+`<h2>💡 Unsere Ideen</h2><div class="card"><h3>Neue Idee</h3><form onsubmit="addIdea(event)"><label>Titel</label><input name="title" required><label>Beschreibung</label><textarea name="body"></textarea><div class="spacer"></div><button>Idee speichern</button></form></div><div class="stack">${rows.map(x=>`<div class="item"><div class="row"><strong>${esc(x.title)}</strong><span class="pill">${x.status==='archived'?'Archiviert':'Offen'}</span></div><p>${esc(x.body)}</p><div class="actions"><button class="secondary small" onclick="ideaToTask('${x.id}')">Als Aufgabe</button><button class="secondary small" onclick="archiveIdea('${x.id}','${x.status}')">${x.status==='archived'?'Wieder öffnen':'Archivieren'}</button><button class="danger small" onclick="deleteAndRefresh('ideas','${x.id}','ideas')">Löschen</button></div></div>`).join('')||'<p class="muted">Noch keine Ideen.</p>'}</div>`);cache.ideas=rows}
 async function addIdea(e){e.preventDefault();let f=e.target;if(await insert('ideas',{title:f.title.value.trim(),body:f.body.value.trim()||null}))ideas()}
