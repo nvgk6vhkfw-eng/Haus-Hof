@@ -258,6 +258,33 @@ html:has(input:focus) .hh-bottom-nav,html:has(textarea:focus) .hh-bottom-nav,htm
 .hh-record-title{flex:1;min-width:0}
 .hh-record-title strong{font-size:14px;overflow-wrap:anywhere}
 .hh-record-meta{font-size:11px;color:var(--muted);display:block;margin-top:3px}
+
+/* V2.1.4 – Monatskalender. Das Post-it- und Startseiten-Design bleibt unberührt. */
+.hh-calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 12px}
+.hh-calendar-toolbar strong{font-size:16px;text-align:center;text-transform:capitalize}
+.hh-calendar-toolbar .hh-cal-arrow{min-width:43px;min-height:43px;font-size:23px;padding:5px}
+.hh-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.hh-calendar-weekday{text-align:center;color:var(--muted);font-size:11px;padding:6px 0;font-weight:700}
+.hh-calendar-day{position:relative;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;border-radius:10px;min-width:0;min-height:45px;background:var(--panel2);border:1px solid transparent;color:var(--text);font-size:14px;font-weight:500;padding:5px 1px}
+.hh-calendar-day.is-selected{border-color:var(--accent);background:var(--accent);color:var(--bg);font-weight:800}
+.hh-calendar-day.is-today:not(.is-selected){border-color:var(--accent)}
+.hh-calendar-day:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hh-calendar-blank{min-height:45px}
+.hh-calendar-dots{display:flex;gap:3px;justify-content:center;min-height:5px}
+.hh-calendar-dot{width:5px;height:5px;display:block;background:var(--accent);border-radius:50%}
+.hh-calendar-dot.is-waste{background:#79b79c}
+.hh-calendar-day.is-selected .hh-calendar-dot{background:var(--bg)}
+.hh-calendar-events{display:grid;gap:8px;margin-top:10px}
+.hh-calendar-event{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:10px 12px}
+.hh-calendar-event-main{min-width:0;flex:1}
+.hh-calendar-event-main strong{display:block;font-size:14px;overflow-wrap:anywhere}
+.hh-calendar-event-main small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.hh-calendar-event .hh-action-menu>summary{min-width:36px;min-height:36px}
+.hh-calendar-top{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap}
+.hh-calendar-panel{margin:12px 0;border:1px solid var(--line);border-radius:15px;background:var(--panel);padding:12px}
+.hh-calendar-panel form .formgrid{margin:8px 0}
+.hh-calendar-ics{margin-top:16px}
+@media(max-width:390px){.hh-calendar-grid{gap:3px}.hh-calendar-day{min-height:41px;font-size:13px}.hh-calendar-blank{min-height:41px}.hh-calendar-event{padding:9px}}
 </style></head><body><div id="app" class="wrap"></div><div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -273,7 +300,7 @@ function toast(t){let el=$('#toast');el.textContent=t;el.style.display='block';c
 function applyTheme(t){let a=themes[t]||themes.black_copper;['bg','panel','panel2','text','muted','accent','line'].forEach((n,i)=>document.documentElement.style.setProperty('--'+n,a[i]));document.querySelector('meta[name="theme-color"]').content=a[0]}
 function header(){return `<header><div><h1>Haus <span style="color:var(--accent)">&</span> Hof</h1><div class="sub">Unser Zuhause. Gemeinsam organisiert.</div></div><div class="topactions">${user?`<button class="hh-settings" onclick="go('settings')" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button>`:''}</div></header>`}
 function hhMobileNav(){if(!user||!household)return '';const items=[['⌂','Start','go(\'home\')',page==='home'],['▦','Woche','openRecipeTab(\'week\')',page==='recipes'&&recipeTab==='week'],['🛒','Einkauf','go(\'shopping\')',page==='shopping'],['▤','Rezepte','openRecipeTab(\'list\')',page==='recipes'&&recipeTab==='list']];return `<nav class="hh-bottom-nav" aria-label="Schnellnavigation"><div class="hh-bottom-nav-inner">${items.map(([icon,name,action,active])=>`<button type="button" class="hh-nav-btn ${active?'active':''}" ${active?'aria-current="page"':''} onclick="${action}"><span class="hh-nav-icon" aria-hidden="true">${icon}</span><span>${name}</span></button>`).join('')}</div></nav>`}
-function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 2.1.1 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
+function render(content){$('#app').innerHTML=header()+content+`<div class="foot">Version 2.1.4 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
 function openRecipeTab(tab){if(!user||!household)return;page='recipes';editing=null;activeShoppingId=null;recipes(tab)}
 function hhHomeDisclosureChange(el,key){try{localStorage.setItem(key,el.open?'1':'0')}catch(e){}}
 function hhHomeDisclosureOpen(key,defaultOpen){try{let value=localStorage.getItem(key);return value===null?defaultOpen:value==='1'}catch(e){return defaultOpen}}
@@ -288,9 +315,74 @@ function setup(){let {url,key}=config();render(`<div class="card auth"><h2>Verbi
 function saveConfig(){let url=$('#url').value.trim(),key=$('#key').value.trim();if(!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url)||!key){toast('Bitte gültige Project URL und öffentlichen Schlüssel eingeben');return}localStorage.setItem('hh_url',url.replace(/\/$/,''));localStorage.setItem('hh_key',key);location.reload()}
 function login(){render(`<div class="card auth"><h2>Willkommen zuhause</h2><p class="muted">Melde dich mit deinem eigenen Haus-&-Hof-Konto an.</p><form onsubmit="signIn(event)"><label>E-Mail-Adresse</label><input id="email" type="email" autocomplete="username" required><label>Passwort</label><input id="password" type="password" autocomplete="current-password" required><div class="spacer"></div><button type="submit">Anmelden</button></form><p class="muted">Die Konten wurden bereits in Supabase angelegt.</p><button class="secondary small" onclick="setup()">Verbindungseinstellungen</button></div>`)}
 async function signIn(e){e.preventDefault();let {error}=await client.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value});if(error){toast('Anmeldung fehlgeschlagen: '+error.message);return}await start()}
-async function signOut(){await client.auth.signOut();user=null;household=null;login()}
-async function start(){let {data:{user:u}}=await client.auth.getUser();user=u;if(!user){login();return}let {data,error}=await client.from('household_members').select('household_id,display_name,user_id').eq('user_id',user.id).limit(1);if(error||!data?.length){render(`<div class="notice">Dein Konto ist angemeldet, aber noch keinem Haushalt zugeordnet. Bitte die Supabase-Mitgliedschaft prüfen.</div><button onclick="signOut()">Abmelden</button>`);return}household=data[0].household_id;let m=await client.from('household_members').select('user_id,display_name').eq('household_id',household);memberNames=Object.fromEntries((m.data||[]).map(x=>[x.user_id,x.display_name]));let p=await client.from('user_preferences').select('*').eq('user_id',user.id).maybeSingle();prefs={theme:'black_copper',tile_layout:[],push_preferences:{},...(p.data||{})};applyTheme(prefs.theme);go('home')}
+async function signOut(){hhLiveStop();await client.auth.signOut();user=null;household=null;login()}
+async function start(){let {data:{user:u}}=await client.auth.getUser();user=u;if(!user){login();return}let {data,error}=await client.from('household_members').select('household_id,display_name,user_id').eq('user_id',user.id).limit(1);if(error||!data?.length){render(`<div class="notice">Dein Konto ist angemeldet, aber noch keinem Haushalt zugeordnet. Bitte die Supabase-Mitgliedschaft prüfen.</div><button onclick="signOut()">Abmelden</button>`);return}household=data[0].household_id;let m=await client.from('household_members').select('user_id,display_name').eq('household_id',household);memberNames=Object.fromEntries((m.data||[]).map(x=>[x.user_id,x.display_name]));let p=await client.from('user_preferences').select('*').eq('user_id',user.id).maybeSingle();prefs={theme:'black_copper',tile_layout:[],push_preferences:{},...(p.data||{})};applyTheme(prefs.theme);go('home');hhLiveStart()}
 async function savePrefs(){let {error}=await client.from('user_preferences').upsert({user_id:user.id,theme:prefs.theme,tile_layout:prefs.tile_layout,push_preferences:prefs.push_preferences});if(error)toast(error.message)}
+
+// V2.1.4 – Haushalts-Synchronisierung mit Realtime und Wiederabgleich.
+// Datenschutz: alle Event-Streams sind auf die angemeldete household_id gefiltert.
+let hhLiveChannel=null,hhLivePoll=null,hhLiveDebounce=null,hhLiveBusy=false,hhLivePending=false,hhLiveStatus='getrennt';
+const hhLiveTables=['tasks','task_completions','shopping_lists','shopping_items','meal_plan','recipes','recipe_ingredients','calendar_events','maintenance','maintenance_history','asset_expenses','assets','ideas'];
+function hhLiveStop(){
+ clearInterval(hhLivePoll);clearTimeout(hhLiveDebounce);hhLivePoll=null;hhLiveDebounce=null;hhLivePending=false;
+ if(hhLiveChannel&&client){try{client.removeChannel(hhLiveChannel)}catch(e){}}
+ hhLiveChannel=null;hhLiveStatus='getrennt';
+}
+function hhLiveStart(){
+ hhLiveStop();if(!client||!household||!user)return;
+ const scopedHousehold=household;
+ try{
+  let channel=client.channel('haus-hof-'+user.id.slice(0,8)+'-'+Date.now());
+  for(const table of hhLiveTables){channel=channel.on('postgres_changes',{event:'*',schema:'public',table,filter:'household_id=eq.'+scopedHousehold},()=>{
+   if(household===scopedHousehold)hhLiveRequestRefresh();
+  });}
+  hhLiveChannel=channel;
+  channel.subscribe(status=>{
+   if(household!==scopedHousehold)return;
+   hhLiveStatus=status==='SUBSCRIBED'?'verbunden':status==='CHANNEL_ERROR'||status==='TIMED_OUT'?'Wiederabgleich':'Verbindung wird hergestellt';
+   if(status==='SUBSCRIBED')hhLiveRequestRefresh();
+  });
+ }catch(e){hhLiveStatus='Wiederabgleich';}
+ // Auch bei ausgeschaltetem Realtime oder Netzunterbrechungen werden offene Ansichten aktualisiert.
+ hhLivePoll=setInterval(()=>hhLiveRequestRefresh(),60000);
+}
+function hhLiveHasDraft(){
+ if(document.querySelector('.hh-modal-backdrop'))return true;
+ if(document.querySelector('#hh-calendar-editor'))return true;
+ const a=document.activeElement;
+ if(a&&a.closest&&a.closest('#app')&&a.matches('input,textarea,select,[contenteditable="true"]'))return true;
+ if(document.querySelector('#app details[open] form'))return true;
+ return false;
+}
+function hhLiveRequestRefresh(){
+ if(!household||!user||!client)return;
+ hhLivePending=true;
+ clearTimeout(hhLiveDebounce);
+ hhLiveDebounce=setTimeout(hhLiveTryRefresh,700);
+}
+async function hhLiveTryRefresh(){
+ if(!hhLivePending||hhLiveBusy||!household||!user||document.visibilityState==='hidden'||hhLiveHasDraft())return;
+ hhLiveBusy=true;hhLivePending=false;
+ const oldPage=page,oldHouse=household,oldScroll=window.scrollY;
+ try{
+  if(oldPage==='home')await home();
+  else if(oldPage==='calendar'&&!document.querySelector('#hh-calendar-editor'))await calendar();
+  else if(oldPage==='shopping')await shopping();
+  else if(oldPage==='tasks'||oldPage==='yard'){
+   if(!document.querySelector('#app form'))await tasks(oldPage);
+  }else if(oldPage==='recipes'){
+   if(document.getElementById('recipe-cards')||document.querySelector('.week-rows')||document.querySelector('.recipe-home'))await recipes(recipeTab);
+  }else if(oldPage==='reminders')await reminders();
+  // Andere Bereiche werden beim erneuten Öffnen ohnehin aus Supabase geladen.
+  if(oldHouse===household&&oldPage===page)requestAnimationFrame(()=>window.scrollTo(0,oldScroll));
+ }catch(e){hhLiveStatus='Wiederabgleich'}
+ finally{hhLiveBusy=false;if(hhLivePending)hhLiveDebounce=setTimeout(hhLiveTryRefresh,1100);}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')hhLiveRequestRefresh()});
+window.addEventListener('online',()=>hhLiveRequestRefresh());
+document.addEventListener('focusout',()=>{if(hhLivePending)setTimeout(hhLiveTryRefresh,300)},true);
+document.addEventListener('toggle',()=>{if(hhLivePending)setTimeout(hhLiveTryRefresh,250)},true);
+
 function go(p){if(p!=='shopping')activeShoppingId=null;page=p;editing=null;if(p==='home')home();else if(p==='settings')settings();else if(p==='tasks'||p==='yard')tasks(p);else if(p==='recipes')recipes();else if(p==='shopping')shopping();else if(p==='ideas')ideas();else if(p==='assets')assets();else if(p==='calendar')calendar();else if(p==='reminders')reminders()}
 async function home(){
  const thisHousehold=household;
@@ -319,7 +411,7 @@ async function home(){
  render(`<p class="muted home-greeting">Hallo ${esc(memberNames[user.id]||'ihr zwei')} 👋 · ${esc(dateLabel)}</p>${overview}<button class="reminder-home-link" onclick="go('reminders')">🔔 Fällige Aufgaben und Wartungen ansehen <span>›</span></button><div class="today-heading">Unsere Bereiche</div><div class="grid home-tiles">${ordered.map(m=>`<button class="tile" onclick="go('${m[0]}')"><span class="emoji">${m[1]}</span><span><strong>${m[2]}</strong><br><small>${m[3]}</small>${['tasks','yard'].includes(m[0])?`<span class="tile-count" onclick="event.stopPropagation();go('${m[0]}')">${(allTasksResult.data||[]).filter(t=>t.category===(m[0]==='yard'?'hof':'haushalt')).length||''}</span>`:m[0]==='shopping'&&shoppingResult.data?.length?`<span class="tile-count" onclick="event.stopPropagation();go('shopping')">${shoppingResult.data.length}</span>`:''}</span></button>`).join('')}</div>`);
  if(tasksResult.error||eventsResult.error||mealResult.error)toast('Tagesübersicht konnte teilweise nicht geladen werden');
 }
-function settings(){render(back()+`<h2>Einstellungen</h2><div class="card"><h3>Mein Design</h3><label>Farbthema</label><select id="theme" onchange="changeTheme(this.value)">${Object.entries(themeNames).map(([k,v])=>`<option value="${k}" ${prefs.theme===k?'selected':''}>${v}</option>`).join('')}</select></div><div class="card"><h3>Meine Kacheln</h3><p class="muted">Die Kacheln auf der Startseite folgen dieser Reihenfolge.</p><div class="stack">${[...new Set([...(prefs.tile_layout?.length?prefs.tile_layout:modules.map(x=>x[0])),...modules.map(x=>x[0])])].map((id,i)=>{let m=modules.find(x=>x[0]===id);return m?`<div class="row item"><span>${m[1]} ${m[2]}</span><span><button class="small secondary" onclick="moveTile(${i},-1)">↑</button> <button class="small secondary" onclick="moveTile(${i},1)">↓</button></span></div>`:''}).join('')}</div></div><div class="card"><h3>Erinnerungen</h3><label class="row" style="align-items:center;gap:12px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.muell!==false?'checked':''} onchange="setWasteReminder(this.checked)"><span>Müllabfuhr am Vorabend um 18:00 Uhr erinnern</span></label><p class="muted">Die Einstellung wird pro Benutzer gespeichert. Automatische Push-Nachrichten müssen noch technisch eingerichtet werden.</p></div><div class="card"><h3>🔔 Fälligkeiten in der App</h3><p class="muted">Die Hinweise erscheinen beim Öffnen der App. Automatische Push-Nachrichten bei geschlossener App sind noch nicht eingerichtet.</p><label>Aufgaben anzeigen ab</label><select onchange="setReminderPreference('task_lead_days',Number(this.value))">${[3,7,14,30].map(n=>`<option value="${n}" ${Number(prefs.push_preferences?.task_lead_days??7)===n?'selected':''}>${n} Tage vorher</option>`).join('')}</select><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.task_reminders!==false?'checked':''} onchange="setReminderPreference('task_reminders',this.checked)"><span>Aufgaben in Erinnerungen anzeigen</span></label><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.maintenance_reminders!==false?'checked':''} onchange="setReminderPreference('maintenance_reminders',this.checked)"><span>Wartungen und TÜV anzeigen</span></label><button class="secondary small" onclick="go('reminders')">🔔 Zur Erinnerungsübersicht</button></div><div class="card"><h3>Benutzerkonto</h3><p class="muted">${esc(user.email)}</p><button class="secondary" onclick="signOut()">Abmelden</button></div><div class="card"><h3>Verbindung</h3><p class="muted">Supabase verbunden. Nur öffentliche Verbindungsschlüssel verwenden.</p></div>`)}
+function settings(){render(back()+`<h2>Einstellungen</h2><div class="card"><h3>Mein Design</h3><label>Farbthema</label><select id="theme" onchange="changeTheme(this.value)">${Object.entries(themeNames).map(([k,v])=>`<option value="${k}" ${prefs.theme===k?'selected':''}>${v}</option>`).join('')}</select></div><div class="card"><h3>Meine Kacheln</h3><p class="muted">Die Kacheln auf der Startseite folgen dieser Reihenfolge.</p><div class="stack">${[...new Set([...(prefs.tile_layout?.length?prefs.tile_layout:modules.map(x=>x[0])),...modules.map(x=>x[0])])].map((id,i)=>{let m=modules.find(x=>x[0]===id);return m?`<div class="row item"><span>${m[1]} ${m[2]}</span><span><button class="small secondary" onclick="moveTile(${i},-1)">↑</button> <button class="small secondary" onclick="moveTile(${i},1)">↓</button></span></div>`:''}).join('')}</div></div><div class="card"><h3>Erinnerungen</h3><label class="row" style="align-items:center;gap:12px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.muell!==false?'checked':''} onchange="setWasteReminder(this.checked)"><span>Müllabfuhr am Vorabend um 18:00 Uhr erinnern</span></label><p class="muted">Die Einstellung wird pro Benutzer gespeichert. Automatische Push-Nachrichten müssen noch technisch eingerichtet werden.</p></div><div class="card"><h3>🔔 Fälligkeiten in der App</h3><p class="muted">Die Hinweise erscheinen beim Öffnen der App. Automatische Push-Nachrichten bei geschlossener App sind noch nicht eingerichtet.</p><label>Aufgaben anzeigen ab</label><select onchange="setReminderPreference('task_lead_days',Number(this.value))">${[3,7,14,30].map(n=>`<option value="${n}" ${Number(prefs.push_preferences?.task_lead_days??7)===n?'selected':''}>${n} Tage vorher</option>`).join('')}</select><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.task_reminders!==false?'checked':''} onchange="setReminderPreference('task_reminders',this.checked)"><span>Aufgaben in Erinnerungen anzeigen</span></label><label class="row" style="align-items:center;gap:10px"><input type="checkbox" style="width:auto" ${prefs.push_preferences?.maintenance_reminders!==false?'checked':''} onchange="setReminderPreference('maintenance_reminders',this.checked)"><span>Wartungen und TÜV anzeigen</span></label><button class="secondary small" onclick="go('reminders')">🔔 Zur Erinnerungsübersicht</button></div><div class="card"><h3>Benutzerkonto</h3><p class="muted">${esc(user.email)}</p><button class="secondary" onclick="signOut()">Abmelden</button></div><div class="card"><h3>Verbindung & Synchronisierung</h3><p class="muted">Supabase: angemeldet. Gemeinsame Änderungen werden per Echtzeitkanal und regelmäßigem Wiederabgleich geladen. Status: <span id="hh-sync-state">${esc(hhLiveStatus)}</span>.</p><p class="muted">Bei geschlossenem Browser oder ohne Internet werden keine neuen Änderungen empfangen. Die Einstellungen für Echtzeitbenachrichtigungen müssen in Supabase für die verwendeten Tabellen aktiviert sein.</p><button class="secondary small" onclick="hhLiveRequestRefresh();toast('Abgleich angefordert')">Jetzt abgleichen</button></div>`)}
 function setReminderPreference(k,value){prefs.push_preferences={...(prefs.push_preferences||{}),[k]:value};savePrefs();toast('Erinnerungseinstellung gespeichert')}
 function setWasteReminder(on){prefs.push_preferences={...(prefs.push_preferences||{}),muell:on};savePrefs();toast(on?'Müllerinnerung eingeschaltet':'Müllerinnerung ausgeschaltet')}
 function changeTheme(t){prefs.theme=t;applyTheme(t);savePrefs()}
@@ -646,7 +738,97 @@ async function addMeal(e){e.preventDefault();let f=e.target;let {error}=await cl
 async function assets(){let [rows,maintenance]=await Promise.all([fetchRows('assets',null),fetchRows('maintenance','due_date')]);render(back()+`<h2>🚗 Fahrzeuge & Wartung</h2><div class="card"><h3>Fahrzeug oder Gerät hinzufügen</h3><form onsubmit="addAsset(event)"><label>Bezeichnung</label><input name="name" required placeholder="z. B. Auto, Anhänger, Rasenmäher"><label>Kennzeichen (optional)</label><input name="registration"><label>Notizen</label><textarea name="notes"></textarea><div class="spacer"></div><button>Speichern</button></form></div><div class="card"><h3>Wartung / TÜV eintragen</h3><form onsubmit="addMaintenance(event)"><label>Fahrzeug / Gerät</label><select name="asset" required><option value="">Bitte wählen</option>${rows.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select><label>Was steht an?</label><input name="title" required placeholder="z. B. Hauptuntersuchung"><label>Fällig am</label><input type="date" lang="de-DE" name="due" required><label>Notizen</label><textarea name="notes"></textarea><div class="spacer"></div><button>Termin speichern</button></form></div><h3>Fälligkeiten</h3><div class="stack">${maintenance.map(x=>`<div class="item"><strong>${esc(x.title)}</strong><p class="muted">${esc(rows.find(a=>a.id===x.asset_id)?.name||'Gerät')} · ${esc(formatDateDE(x.due_date))}</p>${x.notes?`<p>${esc(x.notes)}</p>`:''}<button class="danger small" onclick="deleteAndRefresh('maintenance','${x.id}','assets')">Löschen</button></div>`).join('')||'<p class="muted">Noch keine Wartungstermine.</p>'}</div><h3>Meine Fahrzeuge & Geräte</h3><div class="stack">${rows.map(x=>`<div class="item"><strong>${esc(x.name)}</strong><p class="muted">${esc(x.registration||'')} ${esc(x.notes||'')}</p><button class="danger small" onclick="deleteAndRefresh('assets','${x.id}','assets')">Löschen</button></div>`).join('')||'<p class="muted">Noch keine Geräte.</p>'}</div>`)}
 async function addAsset(e){e.preventDefault();let f=e.target;if(await insert('assets',{name:f.name.value.trim(),registration:f.registration.value.trim()||null,notes:f.notes.value.trim()||null}))assets()}
 async function addMaintenance(e){e.preventDefault();let f=e.target;if(await insert('maintenance',{asset_id:f.asset.value,title:f.title.value.trim(),due_date:f.due.value,notes:f.notes.value.trim()||null}))assets()}
-async function calendar(){let rows=await fetchRows('calendar_events','starts_at');render(back()+`<h2>📅 Gemeinsamer Kalender</h2><details class="hh-collapsible-list"><summary>🗑 Abfallkalender importieren</summary><div class="hh-collapse-body"><p class="muted">iCal-Datei (.ics) importieren. Familientonne wird ausgelassen; bereits vorhandene Abfuhrtermine werden nicht doppelt angelegt.</p><input type="file" accept=".ics,text/calendar" onchange="importWasteCalendar(this.files[0])"></div></details><div class="notice">Termine werden in Haus & Hof gemeinsam gespeichert. Eine automatische Apple-Kalender-Synchronisierung ist noch nicht eingebaut.</div><details class="hh-collapsible-list"><summary>＋ Neuen Termin hinzufügen</summary><div class="hh-collapse-body"><form onsubmit="addEvent(event)"><label>Titel</label><input name="title" required><label>Beginn</label><input type="datetime-local" name="start" required><label>Ende (optional)</label><input type="datetime-local" name="end"><label>Notizen</label><textarea name="notes"></textarea><div class="spacer"></div><button>Termin speichern</button></form></div></details><h3>Termine</h3><div class="stack">${rows.map(x=>`<div class="item hh-record"><div class="row"><div class="hh-record-title"><strong>${esc(x.title)}</strong><small class="hh-record-meta">${new Date(x.starts_at).toLocaleString('de-DE')}${x.ends_at?' – '+new Date(x.ends_at).toLocaleString('de-DE'):''}</small></div><details class="hh-action-menu"><summary aria-label="Terminoptionen">⋮</summary><div class="hh-action-options"><button class="danger small" onclick="deleteAndRefresh('calendar_events','${x.id}','calendar')">Löschen</button></div></details></div>${x.notes?`<details class="hh-note-detail"><summary>Notiz anzeigen</summary><p>${esc(x.notes)}</p></details>`:''}</div>`).join('')||'<p class="muted">Noch keine Termine.</p>'}</div>`)}
+
+// V2.1.4 – Monatskalender und Tagesliste; keine neuen DB-Spalten nötig.
+let hhCalMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+let hhCalSelected=localISO(new Date());
+function hhCalLocalDate(iso){let d=new Date(iso);return Number.isFinite(d.getTime())?localISO(d):''}
+function hhCalInputDate(iso){
+ if(!iso)return '';
+ let d=new Date(iso);if(!Number.isFinite(d.getTime()))return '';
+ return localISO(d)+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function hhCalEventsOnDay(day,rows){
+ const dayStart=new Date(day+'T00:00:00'),dayEnd=new Date(day+'T00:00:00');dayEnd.setDate(dayEnd.getDate()+1);
+ return rows.filter(x=>{
+  const start=new Date(x.starts_at),end=x.ends_at?new Date(x.ends_at):start;
+  if(!Number.isFinite(start.getTime()))return false;
+  if(!x.ends_at)return start>=dayStart&&start<dayEnd;
+  // Das Enddatum ist exklusiv, damit Mitternacht nicht als neuer Tag zählt.
+  return start<dayEnd&&end>dayStart;
+ }).sort((a,b)=>a.starts_at.localeCompare(b.starts_at));
+}
+function hhCalMoveMonth(direction){
+ hhCalMonth=new Date(hhCalMonth.getFullYear(),hhCalMonth.getMonth()+direction,1);
+ hhCalSelected=localISO(hhCalMonth);
+ hhCalRender();
+}
+function hhCalSelect(day){hhCalSelected=day;hhCalRender()}
+async function calendar(){
+ const requestedHouse=household;
+ const rows=await fetchRows('calendar_events','starts_at');
+ if(page!=='calendar'||household!==requestedHouse)return;
+ cache.calendarEvents=rows;hhCalRender();
+}
+function hhCalRender(){
+ const rows=cache.calendarEvents||[];
+ const year=hhCalMonth.getFullYear(),month=hhCalMonth.getMonth(),first=new Date(year,month,1);
+ const offset=(first.getDay()+6)%7,days=new Date(year,month+1,0).getDate();
+ const blank=Array.from({length:offset},()=>'<span class="hh-calendar-blank" aria-hidden="true"></span>').join('');
+ const dayCells=Array.from({length:days},(_,i)=>{
+  const day=i+1,date=localISO(new Date(year,month,day)),appointments=hhCalEventsOnDay(date,rows);
+  const dots=appointments.slice(0,3).map(a=>`<i class="hh-calendar-dot ${String(a.apple_event_uid||'').startsWith('wbc-')?'is-waste':''}"></i>`).join('');
+  return `<button class="hh-calendar-day ${date===hhCalSelected?'is-selected':''} ${date===localISO()?'is-today':''}" onclick="hhCalSelect('${date}')" aria-label="${day}. ${first.toLocaleDateString('de-DE',{month:'long'})}: ${appointments.length} Termin${appointments.length===1?'':'e'}" aria-pressed="${date===hhCalSelected}"><span>${day}</span><span class="hh-calendar-dots">${dots}</span></button>`;
+ }).join('');
+ const lastBlanks=(7-((offset+days)%7))%7;
+ const trailing=Array.from({length:lastBlanks},()=>'<span class="hh-calendar-blank" aria-hidden="true"></span>').join('');
+ const selected=hhCalEventsOnDay(hhCalSelected,rows);
+ const dayLabel=new Date(hhCalSelected+'T12:00:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+ const eventRow=x=>{
+  const start=new Date(x.starts_at),time=start.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  const isWaste=String(x.apple_event_uid||'').startsWith('wbc-');
+  const ends=x.ends_at?' · bis '+new Date(x.ends_at).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+  return `<div class="hh-calendar-event"><div class="hh-calendar-event-main"><strong>${isWaste?'🗑 ':'🗓 '}${esc(x.title)}</strong><small>${time} Uhr${esc(ends)}</small>${x.notes?`<details class="hh-note-detail"><summary>Notiz anzeigen</summary><p>${esc(x.notes)}</p></details>`:''}</div><details class="hh-action-menu"><summary aria-label="Terminoptionen">⋮</summary><div class="hh-action-options"><button class="secondary small" onclick="hhCalEditor('${x.id}')">Bearbeiten</button><button class="danger small" onclick="hhCalDelete('${x.id}')">Löschen</button></div></details></div>`;
+ };
+ const html=back()+`<div class="hh-calendar-top"><h2 style="margin:0">📅 Gemeinsamer Kalender</h2><button onclick="hhCalEditor()">＋ Termin</button></div>
+ <div class="hh-calendar-panel"><div class="hh-calendar-toolbar"><button class="secondary hh-cal-arrow" onclick="hhCalMoveMonth(-1)" aria-label="Vorheriger Monat">‹</button><strong>${first.toLocaleDateString('de-DE',{month:'long',year:'numeric'})}</strong><button class="secondary hh-cal-arrow" onclick="hhCalMoveMonth(1)" aria-label="Nächster Monat">›</button></div>
+ <div class="hh-calendar-grid">${['Mo','Di','Mi','Do','Fr','Sa','So'].map(day=>`<span class="hh-calendar-weekday">${day}</span>`).join('')}${blank}${dayCells}${trailing}</div></div>
+ <div id="hh-calendar-editor-slot"></div>
+ <div class="hh-calendar-top"><h3 style="margin:5px 0">${esc(dayLabel)}</h3><button class="secondary small" onclick="hhCalEditor()">＋</button></div>
+ <div class="hh-calendar-events">${selected.length?selected.map(eventRow).join(''):'<p class="muted">Für diesen Tag sind keine Termine eingetragen.</p>'}</div>
+ <details class="hh-collapsible-list hh-calendar-ics"><summary>🗑 Abfallkalender importieren</summary><div class="hh-collapse-body"><p class="muted">iCal-Datei (.ics) importieren. Familientonne wird ausgelassen; bereits vorhandene Abfuhrtermine werden nicht doppelt angelegt.</p><input type="file" accept=".ics,text/calendar" onchange="importWasteCalendar(this.files[0])"></div></details>
+ <p class="muted" style="font-size:12px;margin-top:10px">Termine sind gemeinsam gespeichert. Der Kalender aktualisiert sich bei bestehender Verbindung automatisch und beim erneuten Öffnen. Keine Apple-Kalender-Synchronisierung.</p>`;
+ render(html);
+}
+function hhCalEditor(id=null){
+ const event=id?(cache.calendarEvents||[]).find(x=>x.id===id):null;
+ if(id&&!event){toast('Termin nicht gefunden');return}
+ const start=event?hhCalInputDate(event.starts_at):hhCalSelected+'T18:00';
+ const end=event?.ends_at?hhCalInputDate(event.ends_at):'';
+ const slot=document.getElementById('hh-calendar-editor-slot');if(!slot)return;
+ slot.innerHTML=`<div class="hh-calendar-panel" id="hh-calendar-editor"><div class="row"><h3>${event?'Termin bearbeiten':'Neuer Termin'}</h3><button type="button" class="secondary small" onclick="hhCalCloseEditor()" aria-label="Schließen">✕</button></div><form onsubmit="hhCalSave(event,${id?`'${id}'`:'null'})"><label>Titel</label><input name="title" maxlength="160" value="${esc(event?.title||'')}" required placeholder="z. B. Arzttermin"><div class="formgrid"><div><label>Beginn</label><input type="datetime-local" name="start" value="${esc(start)}" required></div><div><label>Ende (optional)</label><input type="datetime-local" name="end" value="${esc(end)}"></div></div><label>Notizen (optional)</label><textarea name="notes">${esc(event?.notes||'')}</textarea><div class="actions"><button type="button" onclick="hhCalSave(event,${id?`'${id}'`:'null'})">${event?'Änderungen speichern':'Termin speichern'}</button><button type="button" class="secondary" onclick="hhCalCloseEditor()">Abbrechen</button></div></form></div>`;
+ slot.scrollIntoView({block:'nearest',behavior:'smooth'});slot.querySelector('[name="title"]').focus();
+}
+function hhCalCloseEditor(){let slot=document.getElementById('hh-calendar-editor-slot');if(slot)slot.innerHTML='';if(hhLivePending)setTimeout(hhLiveTryRefresh,350)}
+async function hhCalSave(e,id){
+ e.preventDefault();const f=e.target.tagName==='FORM'?e.target:e.target.form,start=new Date(f.start.value),end=f.end.value?new Date(f.end.value):null;
+ if(!Number.isFinite(start.getTime())||(end&&!Number.isFinite(end.getTime()))){toast('Bitte gültige Termine angeben');return}
+ if(end&&end<=start){toast('Das Ende muss nach dem Beginn liegen');return}
+ const payload={title:f.title.value.trim(),starts_at:start.toISOString(),ends_at:end?end.toISOString():null,notes:f.notes.value.trim()||null};
+ if(!payload.title){toast('Bitte einen Titel eingeben');return}
+ const button=f.querySelector('button[type="submit"]');if(button)button.disabled=true;
+ const result=id?await client.from('calendar_events').update(payload).eq('id',id).eq('household_id',household):await client.from('calendar_events').insert({household_id:household,...payload});
+ if(result.error){toast('Speichern fehlgeschlagen: '+result.error.message);if(button)button.disabled=false;return}
+ hhCalSelected=localISO(start);hhCalMonth=new Date(start.getFullYear(),start.getMonth(),1);
+ toast(id?'Termin aktualisiert':'Termin gespeichert');await calendar();
+}
+async function hhCalDelete(id){
+ if(!await appConfirm('Möchtest du diesen Termin wirklich löschen?','Termin löschen?',true))return;
+ const {error}=await client.from('calendar_events').delete().eq('household_id',household).eq('id',id);
+ if(error){toast('Löschen fehlgeschlagen: '+error.message);return}
+ toast('Termin gelöscht');await calendar();
+}
+
 async function importWasteCalendar(file){
  if(!file)return;
  let raw=await file.text(),blocks=raw.replace(/\r\n/g,'\n').replace(/\n[ \t]/g,'').split('BEGIN:VEVENT').slice(1),entries=[];
@@ -656,7 +838,6 @@ async function importWasteCalendar(file){
  let ids=new Set((existing||[]).map(x=>x.apple_event_uid)),fresh=entries.filter(x=>!ids.has(x.apple_event_uid));if(!fresh.length){toast('Alle Abfuhrtermine sind bereits vorhanden');return}
  let {error}=await client.from('calendar_events').insert(fresh);if(error){toast('Import fehlgeschlagen: '+error.message);return}toast(fresh.length+' Abfuhrtermine importiert');calendar()
 }
-async function addEvent(e){e.preventDefault();let f=e.target;if(f.end.value&&f.end.value<f.start.value){toast('Das Ende muss nach dem Beginn liegen');return}if(await insert('calendar_events',{title:f.title.value.trim(),starts_at:new Date(f.start.value).toISOString(),ends_at:f.end.value?new Date(f.end.value).toISOString():null,notes:f.notes.value.trim()||null}))calendar()}
 
 
 // V1.7: Ideen mit Kategorien, Suche und automatischer Archivierung bei Übernahme
