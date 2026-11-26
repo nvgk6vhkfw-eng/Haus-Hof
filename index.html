@@ -376,6 +376,28 @@ header .sub{font-size:10px}
 
 /* V2.3.0 Rezeptdetails – Portionen und individuelle Zutaten */
 .hh-recipe-portions{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:15px;margin:12px 0}.hh-recipe-stepper{display:flex;align-items:center;gap:12px}.hh-recipe-stepper button{min-width:38px;padding:8px}.hh-v23-recipe-pick{width:min(94vw,500px);max-height:90vh;overflow:auto}.hh-recipe-choose{max-height:42vh;overflow:auto;margin:12px 0;border:1px solid var(--line);border-radius:12px;padding:6px}.hh-recipe-checkrow{display:flex;align-items:center;gap:10px;padding:9px 5px;margin:0;border-bottom:1px solid var(--line);color:var(--text);font-size:14px}.hh-recipe-checkrow:last-child{border-bottom:0}.hh-recipe-checkrow input{width:19px;height:19px;accent-color:var(--accent);flex:none}.hh-recipe-ingredients-editor{display:grid;gap:7px;margin-bottom:9px}.hh-v23-ingredient-row{display:grid;grid-template-columns:76px 80px minmax(0,1fr) 36px;gap:5px}.hh-v23-ingredient-row input{padding:9px 5px;font-size:13px;min-width:0}.hh-v23-ingredient-row button{padding:8px 0;font-size:18px;background:var(--panel2);color:var(--muted)}@media(max-width:400px){.hh-v23-ingredient-row{grid-template-columns:63px 67px minmax(0,1fr) 30px;gap:4px}.hh-v23-ingredient-row input{font-size:12px}}
+
+/* V2.3.6: Ideen, Wunschliste und Investitionsideen – Unterbereiche */
+.hh-idea-head{display:flex;align-items:center;gap:10px;margin:5px 0 16px}
+.hh-idea-head .hh-idea-ico{height:48px;width:48px;display:grid;place-items:center;background:#344b38;border:1px solid #536a57;border-radius:15px;font-size:24px}
+.hh-idea-head h2{margin:0}.hh-idea-head small{font-size:12px;color:var(--muted)}
+.hh-idea-menu{display:grid;gap:10px}.hh-idea-menu button{display:flex;align-items:center;gap:14px;padding:16px;border-radius:16px;background:#293930;border:1px solid #52644f;text-align:left;color:#f5f1e8;font-weight:400}
+.hh-idea-menu .hh-idea-icon{display:grid;place-items:center;min-width:52px;height:52px;border-radius:14px;background:#3c5242;font-size:26px}
+.hh-idea-menu .hh-idea-info{display:grid;flex:1;gap:3px;min-width:0}.hh-idea-menu .hh-idea-info strong{font-size:16px}.hh-idea-menu .hh-idea-info small{font-size:12px;color:#b9c9ba;line-height:1.35}.hh-idea-menu .hh-idea-arrow{font-size:22px;color:#ce986f}
+.hh-idea-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:8px 0 12px}.hh-idea-tools button{font-size:13px}
+.hh-idea-stats{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#28382e;border:1px solid #52644f;border-radius:14px;padding:12px;margin:8px 0 12px}.hh-idea-stats strong{color:#e5be98}
+.hh-idea-filters{display:flex;gap:7px;margin:10px 0;overflow:auto}.hh-idea-filters button{font-size:12px;white-space:nowrap;padding:7px 10px}
+.hh-idea-card{background:#25342b;border:1px solid #4f614e;border-radius:15px;padding:13px;overflow:hidden}
+.hh-idea-card-title{display:flex;align-items:flex-start;gap:8px}.hh-idea-card-title strong{font-size:15px;flex:1;min-width:0;overflow-wrap:anywhere}
+.hh-idea-card-sub{font-size:12px;color:#c0cbbe;margin:5px 0}.hh-idea-card-status{display:inline-flex;font-size:11px;color:#e2b992;background:#493d32;border:1px solid #776045;border-radius:20px;padding:3px 9px;white-space:nowrap}
+.hh-idea-card-image{display:block;max-height:140px;max-width:100%;border-radius:12px;object-fit:cover;margin:9px 0}
+.hh-idea-card .hh-idea-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.hh-idea-card .hh-idea-actions button{font-size:12px;padding:7px 10px}
+.hh-idea-editor{max-width:520px;width:min(96vw,520px);max-height:88vh;overflow:auto;background:#203028;border-color:#7e8d70}
+.hh-idea-editor .hh-idea-input-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hh-idea-editor label{font-weight:600;color:#d0d9cb}.hh-idea-editor textarea{min-height:78px}
+.hh-idea-editor .hh-idea-help{font-size:12px;color:#b8c4ba}.hh-idea-editor .hh-idea-preview{max-height:120px;max-width:100%;object-fit:contain;border-radius:12px}
+@media(max-width:390px){.hh-idea-editor .hh-idea-input-row{grid-template-columns:1fr}}
+
 </style></head><body><div id="app" class="wrap"></div><div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -383,7 +405,7 @@ header .sub{font-size:10px}
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const themes={black_copper:['#141414','#242322','#302d2b','#f7f2ed','#b9aaa0','#c98860','#4b403a'],forest_bronze:['#17231d','#263a30','#344a3d','#f5f1e8','#b9c4b6','#c59b62','#4d6052'],anthracite_petrol:['#172125','#26363b','#30484c','#f2f7f7','#afc3c5','#61b6b5','#466064'],anthracite_pink:['#202024','#303037','#403842','#fff5fa','#c5b3c0','#e3a1bb','#594650'],berry_rose:['#281b26','#3d2938','#513745','#fff4f7','#d4b8c7','#dda5a8','#684857'],navy_gold:['#141e2f','#223149','#2d4059','#f7f5ee','#b9c2ce','#d5b36b','#485975'],anthracite_sand:['#222321','#32332f','#41423a','#f5f3eb','#c7c4b5','#c8b894','#57594f']};
 const themeNames={black_copper:'Schwarz & Kupfer',forest_bronze:'Waldgrün & Bronze',anthracite_petrol:'Anthrazit & Petrol',anthracite_pink:'Anthrazit & Pink',berry_rose:'Beere & Roségold',navy_gold:'Dunkelblau & Gold',anthracite_sand:'Anthrazit & Natursand'};
-const modules=[['recipes','🍲','Rezepte & Wochenplan','Gerichte und Einkaufsliste'],['ideas','💡','Unsere Ideen','Gemeinsam sammeln'],['shopping','🛒','Einkaufslisten','Gemeinsam einkaufen'],['tasks','🏠','Haushalt','Aufgaben im Haus'],['yard','🌿','Hof & Reparaturen','Alles rund ums Grundstück'],['assets','🚗','Fahrzeuge & Maschinen','Wartungen und Kosten'],['calendar','📅','Kalender','Gemeinsame Termine'],['reminders','🔔','Erinnerungen','Aufgaben und Wartungen']];
+const modules=[['recipes','🍲','Rezepte & Wochenplan','Gerichte und Einkaufsliste'],['ideas','💡','Unsere Ideen','Ideen, Wünsche und Investitionen'],['shopping','🛒','Einkaufslisten','Gemeinsam einkaufen'],['tasks','🏠','Haushalt','Aufgaben im Haus'],['yard','🌿','Hof & Reparaturen','Alles rund ums Grundstück'],['assets','🚗','Fahrzeuge & Maschinen','Wartungen und Kosten'],['calendar','📅','Kalender','Gemeinsame Termine'],['reminders','🔔','Erinnerungen','Aufgaben und Wartungen']];
 let client=null,user=null,household=null,memberNames={},prefs={theme:'black_copper',tile_layout:[],push_preferences:{}},page='home',editing=null,cache={};
 function parseDateDE(value){let m=/^(\d{2})\.(\d{2})\.(\d{4})$/.exec((value||'').trim());if(!m)return null;let [_,d,mo,y]=m;let dt=new Date(Number(y),Number(mo)-1,Number(d));return dt.getFullYear()===Number(y)&&dt.getMonth()===Number(mo)-1&&dt.getDate()===Number(d)?`${y}-${mo}-${d}`:null}
 function formatDateDE(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))return value||'';let [y,m,d]=value.split('-');return `${d}.${m}.${y}`}
@@ -391,7 +413,7 @@ function toast(t){let el=$('#toast');el.textContent=t;el.style.display='block';c
 function applyTheme(t){let a=themes[t]||themes.black_copper;['bg','panel','panel2','text','muted','accent','line'].forEach((n,i)=>document.documentElement.style.setProperty('--'+n,a[i]));document.querySelector('meta[name="theme-color"]').content=a[0]}
 function header(){return `<header><div><h1>Haus <span style="color:var(--accent)">&</span> Hof</h1><div class="sub">Unser Zuhause. Gemeinsam organisiert.</div></div><div class="topactions">${user?`<button class="hh-settings" onclick="go('settings')" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button>`:''}</div></header>`}
 function hhMobileNav(){if(!user||!household)return '';const items=[['⌂','Start','go(\'home\')',page==='home'],['▦','Woche','openRecipeTab(\'week\')',page==='recipes'&&recipeTab==='week'],['🛒','Einkauf','go(\'shopping\')',page==='shopping'],['▤','Rezepte','openRecipeTab(\'list\')',page==='recipes'&&recipeTab==='list']];return `<nav class="hh-bottom-nav" aria-label="Schnellnavigation"><div class="hh-bottom-nav-inner">${items.map(([icon,name,action,active])=>`<button type="button" class="hh-nav-btn ${active?'active':''}" ${active?'aria-current="page"':''} onclick="${action}"><span class="hh-nav-icon" aria-hidden="true">${icon}</span><span>${name}</span></button>`).join('')}</div></nav>`}
-function render(content){hhRecipePhotoObserver?.disconnect();hhRecipePhotoObserver=null;$('#app').innerHTML=header()+content+`<div class="foot">Version 2.3.5 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
+function render(content){hhRecipePhotoObserver?.disconnect();hhRecipePhotoObserver=null;$('#app').innerHTML=header()+content+`<div class="foot">Version 2.3.6 · Haus & Hof · by Tom Bücker</div>`+hhMobileNav()}
 function openRecipeTab(tab){if(!user||!household)return;page='recipes';editing=null;activeShoppingId=null;recipes(tab)}
 function hhHomeDisclosureChange(el,key){try{localStorage.setItem(key,el.open?'1':'0')}catch(e){}}
 function hhHomeDisclosureOpen(key,defaultOpen){try{let value=localStorage.getItem(key);return value===null?defaultOpen:value==='1'}catch(e){return defaultOpen}}
@@ -1172,14 +1194,89 @@ async function importWasteCalendar(file){
 }
 
 
-// V1.7: Ideen mit Kategorien, Suche und automatischer Archivierung bei Übernahme
+// V2.3.6: Ideen, Wünsche und Investitionsideen – getrennte Unterkacheln
 const ideaCategories=['Haus & Wohnen','Garten & Hof','Anschaffungen','Freizeit & Ausflüge','Sonstiges'];
-async function ideas(filter='open',term=''){let rows=await fetchRows('ideas');cache.ideas=rows;let shown=rows.filter(x=>(filter==='all'||(filter==='archived'?x.status==='archived':x.status!=='archived'))&&(!term||[x.title,x.body,x.category].join(' ').toLowerCase().includes(term.toLowerCase())));render(back()+`<h2>💡 Unsere Ideen</h2><details class="hh-collapsible-list"><summary>＋ Neue Idee</summary><div class="hh-collapse-body"><form onsubmit="addIdeaV17(event)"><label>Titel</label><input name="title" required><label>Kategorie</label><select name="category">${ideaCategories.map(x=>`<option>${esc(x)}</option>`).join('')}</select><label>Beschreibung</label><textarea name="body"></textarea><button>Idee speichern</button></form></div></details><div class="tabs"><button class="${filter==='open'?'':'secondary'} small" onclick="ideas('open')">Aktuell</button><button class="${filter==='archived'?'':'secondary'} small" onclick="ideas('archived')">Archiv</button><button class="${filter==='all'?'':'secondary'} small" onclick="ideas('all')">Alle</button></div><label>Suche</label><input placeholder="Ideen durchsuchen" value="${esc(term)}" oninput="filterIdeaCards(this.value)"><div class="stack" id="idea-cards">${shown.map(x=>ideaCardV17(x)).join('')||'<p class="muted">Keine Ideen gefunden.</p>'}</div>`)}
-function ideaCardV17(x){return `<div class="item hh-record" data-search="${esc([x.title,x.body,x.category].join(' ').toLowerCase())}"><div class="row"><div class="hh-record-title"><strong>${esc(x.title)}</strong><br><span class="pill">${esc(x.category||'Sonstiges')}</span></div><details class="hh-action-menu"><summary aria-label="Optionen für ${esc(x.title)}">⋮</summary><div class="hh-action-options"><button class="secondary small" onclick="ideaToTaskV17('${x.id}','haushalt')">→ Haushalt</button><button class="secondary small" onclick="ideaToTaskV17('${x.id}','hof')">→ Hof</button><button class="secondary small" onclick="archiveIdeaV17('${x.id}',${x.status==='archived'})">${x.status==='archived'?'Wiederherstellen':'Archivieren'}</button><button class="danger small" onclick="deleteAndRefresh('ideas','${x.id}','ideas')">Löschen</button></div></details></div>${x.body?`<details class="hh-note-detail"><summary>Beschreibung anzeigen</summary><p>${esc(x.body)}</p></details>`:''}</div>`}
-function filterIdeaCards(term){for(let el of document.querySelectorAll('#idea-cards .item'))el.style.display=el.dataset.search.includes(term.toLowerCase())?'':'none'}
-async function addIdeaV17(e){e.preventDefault();let f=e.target;if(await insert('ideas',{title:f.title.value.trim(),body:f.body.value.trim()||null,category:f.category.value,status:'open'}))ideas()}
-async function archiveIdeaV17(id,restore){if(await update('ideas',id,{status:restore?'open':'archived',archived_at:restore?null:new Date().toISOString()}))ideas(restore?'archived':'open')}
-async function ideaToTaskV17(id,category){let x=cache.ideas.find(x=>x.id===id);if(!x)return;if(!await insert('tasks',{category,title:x.title,details:x.body||null}))return;await update('ideas',id,{status:'archived',archived_at:new Date().toISOString()});ideas()}
+const hhIdeaKinds=[
+ {key:'idea',icon:'💡',name:'Unsere Ideen',desc:'Einfälle, Pläne und spontane Gedanken'},
+ {key:'wish',icon:'❤️',name:'Wunschliste',desc:'Dinge, die wir uns gerne anschaffen möchten'},
+ {key:'investment',icon:'🏡',name:'Investitionsideen',desc:'Größere Anschaffungen und Projekte'}
+];
+let hhIdeasSection='menu',hhIdeasFilter='open',hhIdeasSearch='',hhIdeaSchemaReady=false;
+function hhIdeaKind(x){return ['idea','wish','investment'].includes(x?.idea_kind)?x.idea_kind:'idea'}
+function hhIdeaSection(k){return hhIdeaKinds.find(x=>x.key===k)||hhIdeaKinds[0]}
+const hhIdeaMoney=n=>Number(n).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
+const hhIdeaPriority={low:'Niedrig',medium:'Mittel',high:'Hoch'};
+const hhIdeaPeriod={soon:'Kurzfristig',medium:'Mittelfristig',later:'Irgendwann'};
+const hhIdeaProgress={idea:'Idee',planned:'Geplant',done:'Umgesetzt'};
+async function ideas(section='menu',filter='open',term=''){
+ hhIdeasSection=section;hhIdeasFilter=filter;hhIdeasSearch=term;
+ const [rows,schemaResult]=await Promise.all([
+  fetchRows('ideas'),
+  client.from('ideas').select('idea_kind').eq('household_id',household).limit(1)
+ ]);
+ hhIdeaSchemaReady=!schemaResult.error;
+ cache.ideas=rows;
+ const counters=hhIdeaKinds.map(k=>({...k,count:rows.filter(i=>hhIdeaKind(i)===k.key&&i.status!=='archived').length}));
+ if(section==='menu'){
+  render(back()+`<div class="hh-idea-head"><span class="hh-idea-ico">💡</span><div><h2>Ideen & Wünsche</h2><small>Gemeinsam sammeln und planen</small></div></div>${!hhIdeaSchemaReady?'<div class="notice">Für die Wunsch- und Investitionsliste bitte einmal das V2.3.6-SQL ausführen. Alte Ideen bleiben erhalten.</div>':''}<div class="hh-idea-menu">${counters.map(k=>`<button type="button" onclick="ideas('${k.key}')"><span class="hh-idea-icon">${k.icon}</span><span class="hh-idea-info"><strong>${k.name}</strong><small>${k.desc}</small><small>${k.count} aktuell</small></span><span class="hh-idea-arrow">›</span></button>`).join('')}</div>`);
+  return;
+ }
+ const meta=hhIdeaSection(section);
+ const available=rows.filter(x=>hhIdeaKind(x)===meta.key);
+ const shown=available.filter(x=>(filter==='all'||(filter==='archived'?x.status==='archived':x.status!=='archived'))&&(!term||[x.title,x.body,x.category].join(' ').toLocaleLowerCase('de-DE').includes(term.toLocaleLowerCase('de-DE'))));
+ const planned=available.filter(x=>x.status!=='archived'&&x.project_status==='planned'&&x.estimated_cost!=null);
+ const sum=planned.reduce((v,x)=>v+Number(x.estimated_cost||0),0);
+ render(back()+`<div class="hh-idea-head"><span class="hh-idea-ico">${meta.icon}</span><div><h2>${meta.name}</h2><small>${meta.desc}</small></div></div><div class="hh-idea-tools"><button class="secondary small" onclick="ideas('menu')">← Alle Bereiche</button><button class="small" onclick="hhIdeaEdit(null,'${meta.key}')">＋ Neu</button></div>${!hhIdeaSchemaReady?'<div class="notice">Neue Wunsch- und Investitionseinträge benötigen die einmalige V2.3.6-Supabase-Erweiterung.</div>':''}${meta.key==='investment'?`<div class="hh-idea-stats"><span>Geplante Investitionen<br><small class="muted">${planned.length} mit Kostenschätzung</small></span><strong>${hhIdeaMoney(sum)}</strong></div>`:''}<div class="hh-idea-filters">${[['open','Aktuell'],['archived','Archiv'],['all','Alle']].map(([key,label])=>`<button class="${filter===key?'':'secondary'}" onclick="ideas('${meta.key}','${key}')">${label}</button>`).join('')}</div><label for="hh-ideas-search">Suche</label><input id="hh-ideas-search" type="search" placeholder="${meta.name} durchsuchen" value="${esc(term)}" oninput="hhIdeaFilterCards(this.value)"><div class="stack" id="hh-idea-cards">${shown.map(hhIdeaCard).join('')||'<p class="muted">Noch keine Einträge vorhanden.</p>'}</div>`);
+}
+function hhIdeaFilterCards(term){hhIdeasSearch=term;const q=term.toLocaleLowerCase('de-DE');document.querySelectorAll('#hh-idea-cards .hh-idea-card').forEach(el=>{el.hidden=!el.dataset.search.includes(q)})}
+function hhIdeaCard(x){
+ const kind=hhIdeaKind(x),meta=hhIdeaSection(kind),isArch=x.status==='archived',p=hhIdeaProgress[x.project_status]||'Idee';
+ const info=[x.category,kind!=='idea'&&x.estimated_cost!=null?hhIdeaMoney(x.estimated_cost):null,kind!=='idea'&&hhIdeaPriority[x.priority],kind!=='idea'&&hhIdeaPeriod[x.target_period]].filter(Boolean).map(esc).join(' · ');
+ return `<div class="hh-idea-card" data-search="${esc([x.title,x.body,x.category].join(' ').toLocaleLowerCase('de-DE'))}"><div class="hh-idea-card-title"><strong>${esc(x.title)}</strong><span class="hh-idea-card-status">${isArch?'Archiviert':kind==='investment'?esc(p):'Offen'}</span></div>${info?`<div class="hh-idea-card-sub">${info}</div>`:''}${x.photo_data?`<img class="hh-idea-card-image" loading="lazy" src="${esc(x.photo_data)}" alt="Foto zu ${esc(x.title)}">`:''}${x.body?`<details class="hh-note-detail"><summary>Notizen anzeigen</summary><p>${esc(x.body)}</p></details>`:''}<div class="hh-idea-actions"><button class="secondary" onclick="hhIdeaEdit('${x.id}','${kind}')">Bearbeiten</button>${kind==='wish'&&!isArch?`<button class="secondary" onclick="hhIdeaToInvestment('${x.id}')">→ Investitionsidee</button>`:''}<button class="secondary" onclick="ideaToTaskV17('${x.id}','haushalt')">→ Haushalt</button><button class="secondary" onclick="ideaToTaskV17('${x.id}','hof')">→ Hof</button><button class="secondary" onclick="archiveIdeaV17('${x.id}',${isArch})">${isArch?'Wiederherstellen':'Archivieren'}</button><button class="danger" onclick="hhIdeaDelete('${x.id}')">Löschen</button></div></div>`
+}
+function hhIdeaEdit(id=null,kind='idea'){
+ const x=id?cache.ideas.find(row=>row.id===id):null;if(id&&!x)return;
+ const section=x?hhIdeaKind(x):kind,meta=hhIdeaSection(section);
+ const layer=document.createElement('div');layer.className='hh-modal-backdrop hh-idea-overlay';
+ layer.innerHTML=`<div class="hh-modal hh-idea-editor" role="dialog" aria-modal="true" aria-label="${x?'Eintrag bearbeiten':'Neuer Eintrag'}"><div class="row"><h3>${meta.icon} ${x?'Eintrag bearbeiten':'Neu: '+meta.name}</h3><button type="button" class="secondary small" onclick="this.closest('.hh-modal-backdrop').remove()" aria-label="Schließen">✕</button></div><form data-hh-dirty="1" onsubmit="hhIdeaSave(event,${id?`'${id}'`:'null'},'${section}')"><label>Titel</label><input name="title" value="${esc(x?.title||'')}" placeholder="z. B. ${section==='investment'?'Terrasse erneuern':section==='wish'?'Neuer Grill':'Garten umgestalten'}" maxlength="180" required><label>Kategorie</label><select name="category">${ideaCategories.map(c=>`<option value="${esc(c)}" ${x?.category===c?'selected':''}>${esc(c)}</option>`).join('')}</select>${section!=='idea'?`<div class="hh-idea-input-row"><div><label>Geschätzte Kosten (€)</label><input name="estimated_cost" type="number" min="0" max="999999999" step="0.01" placeholder="freiwillig" value="${esc(x?.estimated_cost??'')}"></div><div><label>Priorität</label><select name="priority"><option value="">Ohne Priorität</option>${Object.entries(hhIdeaPriority).map(([k,n])=>`<option value="${k}" ${x?.priority===k?'selected':''}>${n}</option>`).join('')}</select></div></div><label>Zeitraum</label><select name="target_period"><option value="">Noch offen</option>${Object.entries(hhIdeaPeriod).map(([k,n])=>`<option value="${k}" ${x?.target_period===k?'selected':''}>${n}</option>`).join('')}</select>`:''}${section==='investment'?`<label>Status der Investitionsidee</label><select name="project_status">${Object.entries(hhIdeaProgress).map(([k,n])=>`<option value="${k}" ${x?.project_status===k?'selected':''}>${n}</option>`).join('')}</select>`:''}<label>Notizen (optional)</label><textarea name="body" placeholder="Details, Gedanken und Links …">${esc(x?.body||'')}</textarea><label>Foto (optional)</label>${x?.photo_data?`<img class="hh-idea-preview" src="${esc(x.photo_data)}" alt="Gespeichertes Foto"><label class="hh-v23-checkrow"><input name="remove_photo" type="checkbox"> Foto entfernen</label>`:''}<input name="photo" type="file" accept="image/*"><small class="hh-idea-help">Fotos werden vor dem Speichern verkleinert und gemeinsam gespeichert.</small><p class="error" id="hh-idea-save-error" role="alert" hidden></p><div class="actions"><button type="submit">${x?'Änderungen speichern':'Speichern'}</button><button type="button" class="secondary" onclick="this.closest('.hh-modal-backdrop').remove()">Abbrechen</button></div></form></div>`;
+ document.body.appendChild(layer);
+ layer.addEventListener('click',e=>{if(e.target===layer)layer.remove()});
+ layer.querySelector('input[name="title"]')?.focus();
+}
+async function hhIdeaSave(event,id,section){
+ event.preventDefault();const f=event.target,button=f.querySelector('button[type="submit"]'),errorEl=f.querySelector('#hh-idea-save-error');
+ button.disabled=true;errorEl.hidden=true;
+ try{
+  const title=f.elements.namedItem('title').value.trim();if(!title)throw Error('Bitte einen Titel eingeben.');
+  if(!hhIdeaSchemaReady)throw Error('Bitte zuerst das V2.3.6-SQL in Supabase ausführen.');
+  const costElement=f.elements.namedItem('estimated_cost'),cost=costElement&&costElement.value!==''?Number(costElement.value):null;
+  if(cost!==null&&(!Number.isFinite(cost)||cost<0))throw Error('Bitte gültige Kosten eingeben.');
+  const field=n=>f.elements.namedItem(n)?.value||null;
+  const payload={title,body:field('body')?.trim()||null,category:field('category'),idea_kind:section,estimated_cost:cost,priority:field('priority'),target_period:field('target_period'),project_status:section==='investment'?(field('project_status')||'idea'):'idea'};
+  const file=f.elements.namedItem('photo')?.files?.[0];
+  if(file)payload.photo_data=await compactRecipeImage(file);
+  else if(f.elements.namedItem('remove_photo')?.checked)payload.photo_data=null;
+  const query=id?client.from('ideas').update(payload).eq('id',id).eq('household_id',household):client.from('ideas').insert({household_id:household,...payload});
+  const {error}=await query;
+  if(error)throw Error(error.message);
+  f.closest('.hh-modal-backdrop')?.remove();toast('Gespeichert');await ideas(section,hhIdeasFilter);
+ }catch(e){errorEl.textContent='Speichern fehlgeschlagen: '+(e.message||e);errorEl.hidden=false;button.disabled=false}
+}
+async function hhIdeaToInvestment(id){
+ const x=cache.ideas.find(row=>row.id===id);if(!x||hhIdeaKind(x)!=='wish')return;
+ if(!await appConfirm(`„${x.title}“ als geplante Investition übernehmen?`,`Wunsch umwandeln`))return;
+ if(await update('ideas',id,{idea_kind:'investment',project_status:'planned'}))await ideas('investment');
+}
+async function hhIdeaDelete(id){const x=cache.ideas.find(row=>row.id===id);if(!x)return;
+ if(!await appConfirm(`„${x.title}“ endgültig löschen?`,'Eintrag löschen',true))return;
+ const {error}=await client.from('ideas').delete().eq('household_id',household).eq('id',id);
+ if(error)toast('Löschen fehlgeschlagen: '+error.message);else{toast('Eintrag gelöscht');await ideas(hhIdeasSection,hhIdeasFilter)}
+}
+async function archiveIdeaV17(id,restore){if(await update('ideas',id,{status:restore?'open':'archived',archived_at:restore?null:new Date().toISOString()}))await ideas(hhIdeasSection,hhIdeasFilter)}
+async function ideaToTaskV17(id,category){let x=cache.ideas.find(x=>x.id===id);if(!x)return;
+ if(!await insert('tasks',{category,title:x.title,details:x.body||null}))return;
+ await update('ideas',id,{status:'archived',archived_at:new Date().toISOString()});await ideas(hhIdeasSection,hhIdeasFilter)
+}
 
 // V1.7: Gemeinsame Einkaufslisten mit archivierten Listen und Wochenplan-Übernahme
 let activeShoppingId=null;
